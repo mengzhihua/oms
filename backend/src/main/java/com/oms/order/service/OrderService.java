@@ -407,6 +407,7 @@ public class OrderService {
         payload.put("address", String.join("", nvl(o.getProvince()), nvl(o.getCity()), nvl(o.getDistrict()), o.getAddress()));
         o.setTmsOrderNo(integrationService.createTransportInTms(o.getOrderNo(), payload));
         transit(o, "SHIP", SHIPPED, "运单 " + trackingNo);
+        integrationService.notifyDms(o, items, "SHIPPED");
         return o;
     }
 
@@ -418,6 +419,7 @@ public class OrderService {
         o.setSignedAt(LocalDateTime.now());
         o.setCompletedAt(LocalDateTime.now());
         transit(o, "SIGN", COMPLETED, remark == null ? "签收完成" : remark);
+        integrationService.notifyDms(o, items(orderNo), "SIGNED");
         return o;
     }
 
@@ -439,6 +441,7 @@ public class OrderService {
         }
         o.setCancelReason(reason);
         transit(o, "CANCEL", CANCELLED, reason);
+        integrationService.notifyDms(o, items(orderNo), "CANCELLED");
         return o;
     }
 

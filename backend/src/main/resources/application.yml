@@ -57,6 +57,10 @@ oms:
     wms-url: ${OMS_WMS_URL:}
     tms-url: ${OMS_TMS_URL:}
     mock: ${OMS_INTEGRATION_MOCK:true}
+    # DMS(经销商备件补货渠道)状态回推:DMS 地址与其 dms.oms.callback-key
+    dms-url: ${OMS_DMS_URL:}
+    dms-key: ${OMS_DMS_KEY:}
+    dms-channel-code: DMS
 
 ---
 spring:

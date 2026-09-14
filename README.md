@@ -106,6 +106,7 @@ OMS_OPEN_API_KEY=dev-key scripts/smoke.sh # 需先以相同 OMS_OPEN_API_KEY 启
 | `OMS_OPEN_API_KEY` | `oms-open-key` | `/api/open/**` 开放接口的 `X-Api-Key`（生产务必更换；设为空则开放接口全部拒绝） |
 | `OMS_WMS_URL` / `OMS_TMS_URL` | 空 | WMS / TMS 基地址 |
 | `OMS_INTEGRATION_MOCK` | `true` | 为 `true` 时不真正外调 WMS/TMS，本地生成 `WMS-xxx` / `TMS-xxx` 单号 |
+| `OMS_DMS_URL` / `OMS_DMS_KEY` | 空 | DMS（经销商备件补货渠道）基地址与回推 `X-Api-Key`；配置后 `DMS` 渠道订单发货/签收/取消会 `POST {OMS_DMS_URL}/api/open/oms/orders/status` 回推（尽力而为，失败仅记集成日志，不影响 OMS 事务） |
 | `OMS_CORS_ORIGINS` | `http://localhost:5173` | 允许的跨域来源，逗号分隔 |
 | `OMS_H2_CONSOLE` | `false` | 是否开启 H2 控制台 `/h2-console` |
 | `DB_HOST` / `DB_PORT` / `DB_NAME` / `DB_USER` / `DB_PASSWORD` | localhost / 3306 / oms / 必填 / 必填 | mysql profile 数据库连接 |
@@ -153,6 +154,8 @@ CREATED → AUDITED → [RECEIVED 退货入库回增库存] → [REFUNDED] → C
 | WMS | `POST /api/open/wms/shipped` | 发货回传 |
 | WMS | `POST /api/open/wms/return-received` | 退货入库回传 |
 | TMS | `POST /api/open/tms/signed` / `tms/track` | 签收 / 轨迹回传 |
+
+DMS 备件补货：DMS 以渠道身份接入（预置渠道 `DMS`、店铺 `SHOP-DMS01`、备件 SKU `P0001~P0030` 及 `WH-SH` 库存），`channelOrderNo` 为 DMS 补货单号；订单到 `SHIPPED/COMPLETED/CANCELLED` 时 OMS 主动回推 DMS（见 `OMS_DMS_URL`），回推体 `{event, orderNo, shopCode, channelOrderNo, status, warehouseCode, carrierCode, trackingNo, items:[{sku,qty,shippedQty}]}`。
 
 示例：
 
