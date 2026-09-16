@@ -105,8 +105,9 @@ public class OrderController {
     }
 
     @PostMapping("/{orderNo}/hold")
-    public R<SalesOrder> hold(@PathVariable String orderNo, @RequestBody ReasonRequest req) {
-        return R.ok(orderService.hold(orderNo, req.getReason()));
+    public R<SalesOrder> hold(@PathVariable String orderNo, @RequestBody(required = false) ReasonRequest req) {
+        String reason = req == null || StringUtils.isBlank(req.getReason()) ? "IR控制塔挂起" : req.getReason();
+        return R.ok(orderService.hold(orderNo, reason));
     }
 
     @PostMapping("/{orderNo}/unhold")
@@ -114,9 +115,24 @@ public class OrderController {
         return R.ok(orderService.unhold(orderNo));
     }
 
+    @Data
+    public static class AllocateRequest {
+        private String warehouseCode;
+    }
+
     @PostMapping("/{orderNo}/allocate")
-    public R<List<SalesOrder>> allocate(@PathVariable String orderNo) {
-        return R.ok(orderService.allocate(orderNo));
+    public R<List<SalesOrder>> allocate(@PathVariable String orderNo,
+                                        @RequestBody(required = false) AllocateRequest req) {
+        String warehouse = req == null ? null : req.getWarehouseCode();
+        return R.ok(orderService.allocate(orderNo, warehouse));
+    }
+
+    @PostMapping("/{orderNo}/reroute")
+    public R<SalesOrder> reroute(@PathVariable String orderNo, @RequestBody AllocateRequest req) {
+        if (req == null || StringUtils.isBlank(req.getWarehouseCode())) {
+            throw new BizException("warehouseCode 必填");
+        }
+        return R.ok(orderService.reroute(orderNo, req.getWarehouseCode()));
     }
 
     @PostMapping("/{orderNo}/push")
@@ -151,16 +167,19 @@ public class OrderController {
     }
 
     @PostMapping("/{orderNo}/cancel")
-    public R<SalesOrder> cancel(@PathVariable String orderNo, @RequestBody ReasonRequest req) {
-        if (StringUtils.isBlank(req.getReason())) {
-            throw new BizException("取消原因必填");
-        }
-        return R.ok(orderService.cancel(orderNo, req.getReason()));
+    public R<SalesOrder> cancel(@PathVariable String orderNo, @RequestBody(required = false) ReasonRequest req) {
+        String reason = req == null || StringUtils.isBlank(req.getReason()) ? "IR控制塔取消" : req.getReason();
+        return R.ok(orderService.cancel(orderNo, reason));
     }
 
     @PostMapping("/{orderNo}/remark")
-    public R<SalesOrder> remark(@PathVariable String orderNo, @RequestBody ReasonRequest req) {
-        return R.ok(orderService.updateRemark(orderNo, req.getRemark(), req.getPriority()));
+    public R<SalesOrder> remark(@PathVariable String orderNo, @RequestBody(required = false) ReasonRequest req) {
+        ReasonRequest body = req == null ? new ReasonRequest() : req;
+        if (body.getPriority() == null) {
+            body.setPriority(10);
+        }
+        String remark = StringUtils.isBlank(body.getRemark()) ? "IR控制塔加急" : body.getRemark();
+        return R.ok(orderService.updateRemark(orderNo, remark, body.getPriority()));
     }
 
     @Data

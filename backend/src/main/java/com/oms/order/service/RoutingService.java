@@ -43,12 +43,22 @@ public class RoutingService {
     }
 
     public Plan plan(SalesOrder order, List<SalesOrderItem> items) {
+        return plan(order, items, null);
+    }
+
+    public Plan plan(SalesOrder order, List<SalesOrderItem> items, String preferredWarehouse) {
         Map<String, Integer> need = new LinkedHashMap<>();
         for (SalesOrderItem it : items) {
             need.merge(it.getSku(), it.getQty(), Integer::sum);
         }
         Plan plan = new Plan();
         List<String> candidates = candidateWarehouses(order, need.keySet(), plan);
+        if (preferredWarehouse != null && !preferredWarehouse.trim().isEmpty()) {
+            LinkedHashSet<String> ordered = new LinkedHashSet<>();
+            ordered.add(preferredWarehouse.trim());
+            ordered.addAll(candidates);
+            candidates = new ArrayList<>(ordered);
+        }
         Map<String, List<Inventory>> inv = inventoryService.bySkus(new ArrayList<>(need.keySet()));
         Map<String, Map<String, Integer>> avail = new HashMap<>();
         inv.forEach((sku, list) -> list.forEach(i ->
