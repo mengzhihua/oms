@@ -275,6 +275,7 @@ public class OpenApiController {
             row.put("province", order.getProvince());
             row.put("city", order.getCity());
             row.put("status", order.getStatus());
+            row.put("priority", order.getPriority() == null ? 0 : order.getPriority());
             row.put("payAmount", order.getPayAmount());
             row.put("freight", order.getFreight());
             row.put("qty", qtyByOrder.getOrDefault(order.getOrderNo(), 0));

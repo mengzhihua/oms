@@ -89,5 +89,26 @@ public class OpenIrControllerTest {
             assertNotNull(after);
             assertEquals("HOLD", after.path("status").asText());
         }
+
+        mockMvc.perform(post("/api/open/ir/actions")
+                        .header("X-Api-Key", "test-open-key")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"type\":\"OMS_PRIORITIZE\",\"targetKey\":\"IR-SO-STUCK\","
+                                + "\"params\":{\"priority\":10,\"remark\":\"IR 控制塔加急\"}}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(0));
+        String rushed = mockMvc.perform(get("/api/open/ir/snapshots")
+                        .header("X-Api-Key", "test-open-key"))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+        JsonNode prioritized = null;
+        for (JsonNode row : objectMapper.readTree(rushed).get("data").get("orders")) {
+            if ("IR-SO-STUCK".equals(row.path("orderNo").asText())) {
+                prioritized = row;
+                break;
+            }
+        }
+        assertNotNull(prioritized);
+        assertEquals(10, prioritized.path("priority").asInt());
     }
 }
