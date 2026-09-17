@@ -228,10 +228,15 @@ public class OrderService {
     /** 分仓路由 + 库存预占；多仓命中时自动拆单 */
     @Transactional
     public List<SalesOrder> allocate(String orderNo) {
+        return allocate(orderNo, null);
+    }
+
+    @Transactional
+    public List<SalesOrder> allocate(String orderNo, String preferredWarehouse) {
         SalesOrder o = get(orderNo);
         require(o, AUDITED);
         List<SalesOrderItem> items = items(orderNo);
-        RoutingService.Plan plan = routingService.plan(o, items);
+        RoutingService.Plan plan = routingService.plan(o, items, preferredWarehouse);
         if (!plan.getShortage().isEmpty()) {
             log(o, "ALLOCATE_FAIL", o.getStatus(), o.getStatus(), "缺货: " + String.join("; ", plan.getShortage()));
             throw new BizException("库存不足，无法分配: " + String.join("; ", plan.getShortage()));
@@ -440,6 +445,28 @@ public class OrderService {
         o.setCancelReason(reason);
         transit(o, "CANCEL", CANCELLED, reason);
         return o;
+    }
+
+    /** IR 控制塔指定发货仓：未分配则优先该仓分仓，已分配未推仓则改仓编码。 */
+    @Transactional
+    public SalesOrder reroute(String orderNo, String warehouseCode) {
+        if (warehouseCode == null || warehouseCode.trim().isEmpty()) {
+            throw new BizException("仓库编码必填");
+        }
+        SalesOrder o = get(orderNo);
+        if (AUDITED.equals(o.getStatus())) {
+            allocate(orderNo, warehouseCode);
+            return get(orderNo);
+        }
+        if (CREATED.equals(o.getStatus()) || HOLD.equals(o.getStatus()) || ALLOCATED.equals(o.getStatus())) {
+            String from = o.getWarehouseCode();
+            o.setWarehouseCode(warehouseCode.trim());
+            orderMapper.updateById(o);
+            log(o, "REROUTE", o.getStatus(), o.getStatus(),
+                    "IR 改仓 " + from + " -> " + warehouseCode.trim());
+            return o;
+        }
+        throw new BizException("当前状态不可改仓: " + o.getStatus());
     }
 
     @Transactional

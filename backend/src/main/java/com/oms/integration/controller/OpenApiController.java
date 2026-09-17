@@ -200,6 +200,55 @@ public class OpenApiController {
         return R.ok();
     }
 
+    @Data
+    public static class IrAction {
+        private String type;
+        private String targetKey;
+        private Map<String, Object> params;
+    }
+
+    /** IR 控制塔按订单号下发协同指令，避免依赖登录会话。 */
+    @PostMapping("/ir/actions")
+    public R<Object> irAction(@RequestBody IrAction cmd) {
+        if (cmd == null || StringUtils.isBlank(cmd.getType()) || StringUtils.isBlank(cmd.getTargetKey())) {
+            throw new BizException("type 与 targetKey 必填");
+        }
+        Map<String, Object> params = cmd.getParams() == null ? new LinkedHashMap<>() : cmd.getParams();
+        Object result;
+        try {
+            if ("OMS_HOLD".equals(cmd.getType())) {
+                result = orderService.hold(cmd.getTargetKey(), str(params.get("reason"), "IR控制塔挂起"));
+            } else if ("OMS_UNHOLD".equals(cmd.getType())) {
+                result = orderService.unhold(cmd.getTargetKey());
+            } else if ("OMS_REROUTE_WAREHOUSE".equals(cmd.getType())) {
+                result = orderService.reroute(cmd.getTargetKey(), str(params.get("warehouseCode"), null));
+            } else if ("OMS_AUTO_PROCESS".equals(cmd.getType())) {
+                result = orderService.autoProcess(cmd.getTargetKey());
+            } else if ("OMS_CANCEL".equals(cmd.getType())) {
+                result = orderService.cancel(cmd.getTargetKey(), str(params.get("reason"), "IR控制塔取消"));
+            } else if ("OMS_PRIORITIZE".equals(cmd.getType())) {
+                Integer priority = params.get("priority") == null
+                        ? 10 : Integer.parseInt(String.valueOf(params.get("priority")));
+                result = orderService.updateRemark(cmd.getTargetKey(),
+                        str(params.get("remark"), "IR控制塔加急"), priority);
+            } else {
+                throw new BizException("不支持的 IR 指令: " + cmd.getType());
+            }
+            integrationService.logInbound("IR", cmd.getType(), cmd.getTargetKey(), cmd, true, null);
+            return R.ok(result);
+        } catch (RuntimeException e) {
+            integrationService.logInbound("IR", cmd.getType(), cmd.getTargetKey(), cmd, false, e.getMessage());
+            throw e;
+        }
+    }
+
+    private static String str(Object value, String fallback) {
+        if (value == null || String.valueOf(value).trim().isEmpty() || "null".equals(String.valueOf(value))) {
+            return fallback;
+        }
+        return String.valueOf(value);
+    }
+
     private static String nvl(String s) {
         return s == null ? "" : s;
     }
