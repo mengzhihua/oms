@@ -7,14 +7,20 @@ import com.oms.common.BizException;
 import com.oms.common.R;
 import com.oms.integration.service.IntegrationService;
 import com.oms.inventory.entity.Inventory;
+import com.oms.inventory.mapper.InventoryMapper;
 import com.oms.inventory.service.InventoryService;
 import com.oms.order.dto.OrderCreateRequest;
 import com.oms.order.entity.SalesOrder;
+import com.oms.order.entity.SalesOrderItem;
+import com.oms.order.mapper.SalesOrderItemMapper;
+import com.oms.order.mapper.SalesOrderMapper;
 import com.oms.order.service.OrderService;
 import lombok.Data;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
+import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.*;
 
 /**
@@ -31,6 +37,9 @@ public class OpenApiController {
     private final InventoryService inventoryService;
     private final AfterSaleService afterSaleService;
     private final IntegrationService integrationService;
+    private final SalesOrderMapper orderMapper;
+    private final SalesOrderItemMapper itemMapper;
+    private final InventoryMapper inventoryMapper;
 
     // ------------------------------------------------------------ 渠道
 
@@ -240,6 +249,97 @@ public class OpenApiController {
             integrationService.logInbound("IR", cmd.getType(), cmd.getTargetKey(), cmd, false, e.getMessage());
             throw e;
         }
+    }
+
+    /** IR 控制塔拉取订单 / 库存 / 按 SKU+仓+渠道的日销，避免登录分页和报表口径不一致。 */
+    @GetMapping("/ir/snapshots")
+    public R<Map<String, Object>> irSnapshots() {
+        List<SalesOrder> orders = orderMapper.selectList(null);
+        List<SalesOrderItem> items = itemMapper.selectList(null);
+        Map<String, Integer> qtyByOrder = new HashMap<String, Integer>();
+        Map<String, SalesOrder> orderByNo = new LinkedHashMap<String, SalesOrder>();
+        for (SalesOrder order : orders) {
+            orderByNo.put(order.getOrderNo(), order);
+        }
+        for (SalesOrderItem item : items) {
+            int qty = item.getQty() == null ? 0 : item.getQty();
+            qtyByOrder.put(item.getOrderNo(), qtyByOrder.getOrDefault(item.getOrderNo(), 0) + qty);
+        }
+        List<Map<String, Object>> orderRows = new ArrayList<Map<String, Object>>();
+        for (SalesOrder order : orders) {
+            Map<String, Object> row = new LinkedHashMap<String, Object>();
+            row.put("orderNo", order.getOrderNo());
+            row.put("channelCode", order.getChannelCode());
+            row.put("shopCode", order.getShopCode());
+            row.put("warehouseCode", order.getWarehouseCode());
+            row.put("province", order.getProvince());
+            row.put("city", order.getCity());
+            row.put("status", order.getStatus());
+            row.put("priority", order.getPriority() == null ? 0 : order.getPriority());
+            row.put("payAmount", order.getPayAmount());
+            row.put("freight", order.getFreight());
+            row.put("qty", qtyByOrder.getOrDefault(order.getOrderNo(), 0));
+            row.put("orderTime", order.getOrderTime());
+            row.put("payTime", order.getPayTime());
+            row.put("shipTime", order.getShippedAt());
+            row.put("completeTime", order.getCompletedAt());
+            row.put("carrierCode", order.getCarrierCode());
+            row.put("trackingNo", order.getTrackingNo());
+            row.put("wmsOrderNo", order.getWmsOrderNo());
+            row.put("tmsOrderNo", order.getTmsOrderNo());
+            orderRows.add(row);
+        }
+        List<Map<String, Object>> inventoryRows = new ArrayList<Map<String, Object>>();
+        for (Inventory inventory : inventoryMapper.selectList(null)) {
+            int onHand = n(inventory.getQtyOnHand());
+            int reserved = n(inventory.getQtyReserved());
+            Map<String, Object> row = new LinkedHashMap<String, Object>();
+            row.put("warehouseCode", inventory.getWarehouseCode());
+            row.put("sku", inventory.getSku());
+            row.put("qtyOnHand", onHand);
+            row.put("qtyReserved", reserved);
+            row.put("qtyAvailable", onHand - reserved);
+            row.put("safetyQty", n(inventory.getSafetyQty()));
+            inventoryRows.add(row);
+        }
+        Map<String, Map<String, Object>> salesByKey = new LinkedHashMap<String, Map<String, Object>>();
+        for (SalesOrderItem item : items) {
+            SalesOrder order = orderByNo.get(item.getOrderNo());
+            if (order == null || order.getOrderTime() == null
+                    || "CANCELLED".equals(order.getStatus()) || "SPLIT".equals(order.getStatus())) {
+                continue;
+            }
+            LocalDate day = order.getOrderTime().toLocalDate();
+            String sku = item.getSku() == null ? "" : item.getSku();
+            String warehouse = order.getWarehouseCode() == null ? "" : order.getWarehouseCode();
+            String channel = order.getChannelCode() == null ? "" : order.getChannelCode();
+            String key = day + "|" + sku + "|" + warehouse + "|" + channel;
+            Map<String, Object> row = salesByKey.get(key);
+            if (row == null) {
+                row = new LinkedHashMap<String, Object>();
+                row.put("salesDate", day.toString());
+                row.put("sku", sku);
+                row.put("warehouseCode", warehouse);
+                row.put("channelCode", channel);
+                row.put("qty", BigDecimal.ZERO);
+                row.put("amount", BigDecimal.ZERO);
+                salesByKey.put(key, row);
+            }
+            BigDecimal qty = item.getQty() == null ? BigDecimal.ZERO : BigDecimal.valueOf(item.getQty());
+            BigDecimal amount = item.getAmount() == null ? BigDecimal.ZERO : item.getAmount();
+            row.put("qty", ((BigDecimal) row.get("qty")).add(qty));
+            row.put("amount", ((BigDecimal) row.get("amount")).add(amount));
+        }
+        Map<String, Object> payload = new LinkedHashMap<String, Object>();
+        payload.put("system", "OMS");
+        payload.put("orders", orderRows);
+        payload.put("inventory", inventoryRows);
+        payload.put("sales", new ArrayList<Map<String, Object>>(salesByKey.values()));
+        return R.ok(payload);
+    }
+
+    private static int n(Integer value) {
+        return value == null ? 0 : value;
     }
 
     private static String str(Object value, String fallback) {
