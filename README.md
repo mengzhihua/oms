@@ -79,3 +79,42 @@ OMS_OPEN_API_KEY=xxx scripts/smoke.sh   # 需先以相同 OMS_OPEN_API_KEY 启�
 | WMS | `POST /api/open/wms/shipped` | 发货回传 |
 | WMS | `POST /api/open/wms/return-received` | 退货入库回传 |
 | TMS | `POST /api/open/tms/signed` / `tms/track` | 签收 / 轨迹回传 |
+
+## 发布包（开箱即用）
+
+前端生产构建打进 Spring Boot 可执行 JAR。三种用法：
+
+### 1. 服务端（任意已装 JDK 17 的机器）
+
+```bash
+java -jar oms-backend-1.0.0.jar --server.port=8081
+```
+
+Linux systemd 示例见发布包 `README.txt`。
+
+### 2. 便携包（需本机已装 Java）
+
+```bash
+bash scripts/package-release.sh
+unzip release/oms-1.0.0.zip
+cd oms-1.0.0
+```
+
+| 系统 | 怎么用 |
+| --- | --- |
+| Linux | `./start.sh` |
+| macOS | 双击 `start.command`，或 `./start.sh` |
+| Windows | 双击 `start.bat` |
+
+### 3. 原生包（捆绑 JRE，不必装 Java）
+
+合并到默认分支且便携包冒烟通过后，GitHub Actions 自动发布 GitHub Release（也可在 Actions 里手动 `workflow_dispatch`）。分别在 Ubuntu / Windows / macOS 生成：
+
+- `oms-1.0.0-linux-x64.zip` → `bin/oms`
+- `oms-1.0.0-windows-x64.zip` → 双击 `oms.exe`
+- `oms-1.0.0-macos-x64.zip` → 双击 `oms.app`
+
+浏览器访问 `http://127.0.0.1:8081`。默认账号 `admin / admin123`。
+
+十二套系统可同时启动：OMS 8081 / WMS 8082 / TMS 8083 / BMS 8084 / SAP 8085 / OA 8086 / SRM 8087 / BOM 8088 / INV 8089 / IR 8090 / CRM 8091 / DMS 8092。
+
