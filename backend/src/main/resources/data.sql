@@ -187,3 +187,18 @@ WHERE NOT EXISTS (SELECT 1 FROM oms_channel_stock_policy WHERE shop_code = 'SHOP
 INSERT INTO oms_channel_stock_policy (shop_code, sku, warehouse_code, mode, ratio, fixed_qty, status, created_at, updated_at)
 SELECT 'SHOP-JD01', NULL, 'WH-BJ', 'RATIO', 100, 0, 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
 WHERE NOT EXISTS (SELECT 1 FROM oms_channel_stock_policy WHERE shop_code = 'SHOP-JD01' AND sku IS NULL);
+
+-- IR HTTP 联调：审核卡单超过 4 小时，供 OMS_STUCK -> OMS_HOLD
+INSERT INTO oms_sales_order (order_no, channel_code, shop_code, channel_order_no, source, customer_code,
+    receiver_name, receiver_phone, province, city, address, status, pay_status, priority,
+    order_time, pay_time, goods_amount, freight, discount, pay_amount, warehouse_code, carrier_code,
+    created_at, updated_at)
+SELECT 'IR-SO-STUCK', 'TMALL', 'SHOP-TM01', 'IR-CH-STUCK', 'API', 'C001',
+    'IR卡单', '13800000999', '上海市', '上海市', 'IR 演示卡单地址', 'AUDITED', 'PAID', 10,
+    TIMESTAMPADD(HOUR, -10, CURRENT_TIMESTAMP), TIMESTAMPADD(HOUR, -10, CURRENT_TIMESTAMP),
+    398.00, 0, 0, 398.00, 'WH-SH', 'SF', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+WHERE NOT EXISTS (SELECT 1 FROM oms_sales_order WHERE order_no = 'IR-SO-STUCK');
+
+INSERT INTO oms_sales_order_item (order_no, sku, product_name, qty, price, amount, reserved_qty, shipped_qty, created_at, updated_at)
+SELECT 'IR-SO-STUCK', 'SKU001', '无线蓝牙耳机', 2, 199.00, 398.00, 0, 0, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+WHERE NOT EXISTS (SELECT 1 FROM oms_sales_order_item WHERE order_no = 'IR-SO-STUCK' AND sku = 'SKU001');
