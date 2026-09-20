@@ -257,6 +257,7 @@ public class OpenApiController {
         List<SalesOrder> orders = orderMapper.selectList(null);
         List<SalesOrderItem> items = itemMapper.selectList(null);
         Map<String, Integer> qtyByOrder = new HashMap<String, Integer>();
+        Map<String, String> skuByOrder = new HashMap<String, String>();
         Map<String, SalesOrder> orderByNo = new LinkedHashMap<String, SalesOrder>();
         for (SalesOrder order : orders) {
             orderByNo.put(order.getOrderNo(), order);
@@ -264,6 +265,10 @@ public class OpenApiController {
         for (SalesOrderItem item : items) {
             int qty = item.getQty() == null ? 0 : item.getQty();
             qtyByOrder.put(item.getOrderNo(), qtyByOrder.getOrDefault(item.getOrderNo(), 0) + qty);
+            if (item.getSku() != null && !item.getSku().trim().isEmpty()
+                    && !skuByOrder.containsKey(item.getOrderNo())) {
+                skuByOrder.put(item.getOrderNo(), item.getSku().trim());
+            }
         }
         List<Map<String, Object>> orderRows = new ArrayList<Map<String, Object>>();
         for (SalesOrder order : orders) {
@@ -278,6 +283,9 @@ public class OpenApiController {
             row.put("priority", order.getPriority() == null ? 0 : order.getPriority());
             row.put("payAmount", order.getPayAmount());
             row.put("freight", order.getFreight());
+            String sku = skuByOrder.get(order.getOrderNo());
+            row.put("sku", sku);
+            row.put("skuCode", sku);
             row.put("qty", qtyByOrder.getOrDefault(order.getOrderNo(), 0));
             row.put("orderTime", order.getOrderTime());
             row.put("payTime", order.getPayTime());

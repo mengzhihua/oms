@@ -44,6 +44,7 @@ public class OpenIrControllerTest {
             }
         }
         assertNotNull(stuck, "应包含 IR 卡单种子");
+        assertEquals("SKU001", stuck.path("sku").asText(), "订单快照应带首行 SKU");
         boolean sku001 = false;
         for (JsonNode row : data.get("inventory")) {
             if ("SKU001".equals(row.path("sku").asText())
