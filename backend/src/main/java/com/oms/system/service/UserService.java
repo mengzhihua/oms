@@ -10,11 +10,10 @@ import lombok.Data;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.boot.ApplicationArguments;
-import org.springframework.boot.ApplicationRunner;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import javax.annotation.PostConstruct;
 import java.time.LocalDateTime;
 import java.util.Arrays;
 import java.util.List;
@@ -22,7 +21,7 @@ import java.util.List;
 @Slf4j
 @Service
 @RequiredArgsConstructor
-public class UserService implements ApplicationRunner {
+public class UserService {
     private static final List<String> ROLES = Arrays.asList(User.ADMIN, User.OPERATOR, User.VIEWER);
 
     private final UserMapper userMapper;
@@ -31,9 +30,12 @@ public class UserService implements ApplicationRunner {
     @Value("${oms.auth.admin-password:admin123}")
     private String initialAdminPassword;
 
-    /** 首次启动无任何用户时创建 admin 账号（口令来自 oms.auth.admin-password / OMS_ADMIN_PASSWORD） */
-    @Override
-    public void run(ApplicationArguments args) {
+    /**
+     * 在 Web 端口打开前创建 admin。ApplicationRunner 会跑在 Tomcat 已监听之后，
+     * 便携包 smoke 可能在口令散列完成前打登录接口。
+     */
+    @PostConstruct
+    public void ensureAdmin() {
         if (userMapper.selectCount(null) > 0) {
             return;
         }
