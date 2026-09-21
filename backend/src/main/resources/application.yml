@@ -48,7 +48,7 @@ oms:
     admin-password: ${OMS_ADMIN_PASSWORD:admin123}
   cors:
     # 允许跨域的前端来源，逗号分隔；前后端同源部署时可设为空
-    origins: ${OMS_CORS_ORIGINS:http://localhost:5173}
+    origins: ${OMS_CORS_ORIGINS:http://localhost:5173,http://127.0.0.1:5173}
   open:
     # 对外开放接口 /api/open/** 的 X-Api-Key（渠道下单、WMS/TMS 回传）；为空则开放接口全部拒绝
     api-key: ${OMS_OPEN_API_KEY:oms-open-key}

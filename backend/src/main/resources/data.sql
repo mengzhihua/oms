@@ -202,3 +202,27 @@ WHERE NOT EXISTS (SELECT 1 FROM oms_sales_order WHERE order_no = 'IR-SO-STUCK');
 INSERT INTO oms_sales_order_item (order_no, sku, product_name, qty, price, amount, reserved_qty, shipped_qty, created_at, updated_at)
 SELECT 'IR-SO-STUCK', 'SKU001', '无线蓝牙耳机', 2, 199.00, 398.00, 0, 0, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
 WHERE NOT EXISTS (SELECT 1 FROM oms_sales_order_item WHERE order_no = 'IR-SO-STUCK' AND sku = 'SKU001');
+
+-- IR HTTP 联调：可用低于安全库存，供 LOW_STOCK -> SRM_PURCHASE_SUGGEST
+INSERT INTO oms_product (sku, name, type, category, spec, unit, barcode, price, weight_kg, status, created_at, updated_at)
+SELECT 'SKU-IR-LOW', '控制塔低库存演示件', 'NORMAL', '配件', '演示', '个', '6901000000099', 19.00, 0.05, 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+WHERE NOT EXISTS (SELECT 1 FROM oms_product WHERE sku = 'SKU-IR-LOW');
+
+INSERT INTO oms_inventory (warehouse_code, sku, qty_on_hand, qty_reserved, safety_qty, created_at, updated_at)
+SELECT 'WH-SH', 'SKU-IR-LOW', 3, 0, 50, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+WHERE NOT EXISTS (SELECT 1 FROM oms_inventory WHERE warehouse_code = 'WH-SH' AND sku = 'SKU-IR-LOW');
+
+-- IR HTTP 联调：已支付超过 24 小时未发货，供 UNSHIPPED_ORDER -> OMS_PRIORITIZE
+INSERT INTO oms_sales_order (order_no, channel_code, shop_code, channel_order_no, source, customer_code,
+    receiver_name, receiver_phone, province, city, address, status, pay_status, priority,
+    order_time, pay_time, goods_amount, freight, discount, pay_amount, warehouse_code, carrier_code,
+    created_at, updated_at)
+SELECT 'IR-SO-UNSHIPPED', 'TMALL', 'SHOP-TM01', 'IR-CH-UNSHIPPED', 'API', 'C001',
+    'IR未发', '13800000998', '上海市', '上海市', 'IR 演示未发货地址', 'PAID', 'PAID', 0,
+    TIMESTAMPADD(HOUR, -26, CURRENT_TIMESTAMP), TIMESTAMPADD(HOUR, -26, CURRENT_TIMESTAMP),
+    199.00, 0, 0, 199.00, 'WH-SH', 'SF', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+WHERE NOT EXISTS (SELECT 1 FROM oms_sales_order WHERE order_no = 'IR-SO-UNSHIPPED');
+
+INSERT INTO oms_sales_order_item (order_no, sku, product_name, qty, price, amount, reserved_qty, shipped_qty, created_at, updated_at)
+SELECT 'IR-SO-UNSHIPPED', 'SKU001', '无线蓝牙耳机', 1, 199.00, 199.00, 0, 0, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+WHERE NOT EXISTS (SELECT 1 FROM oms_sales_order_item WHERE order_no = 'IR-SO-UNSHIPPED' AND sku = 'SKU001');

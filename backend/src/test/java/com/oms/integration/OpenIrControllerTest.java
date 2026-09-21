@@ -54,6 +54,27 @@ public class OpenIrControllerTest {
             }
         }
         org.junit.jupiter.api.Assertions.assertTrue(sku001, "库存快照应含 WH-SH/SKU001");
+        JsonNode low = null;
+        for (JsonNode row : data.get("inventory")) {
+            if ("SKU-IR-LOW".equals(row.path("sku").asText())
+                    && "WH-SH".equals(row.path("warehouseCode").asText())) {
+                low = row;
+                break;
+            }
+        }
+        assertNotNull(low, "应包含控制塔低库存种子");
+        org.junit.jupiter.api.Assertions.assertTrue(
+                low.path("qtyAvailable").asInt() < low.path("safetyQty").asInt(),
+                "SKU-IR-LOW 可用应低于安全库存");
+        JsonNode unshipped = null;
+        for (JsonNode row : data.get("orders")) {
+            if ("IR-SO-UNSHIPPED".equals(row.path("orderNo").asText())) {
+                unshipped = row;
+                break;
+            }
+        }
+        assertNotNull(unshipped, "应包含超期未发货种子");
+        assertEquals("PAID", unshipped.path("status").asText());
 
         String type = "OMS_HOLD";
         if ("HOLD".equals(stuck.path("status").asText())) {
