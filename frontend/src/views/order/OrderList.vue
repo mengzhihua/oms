@@ -31,7 +31,7 @@
         </el-dropdown>
       </div>
 
-      <el-table :data="rows" v-loading="loading" border stripe size="small" @selection-change="(v) => (selected = v)">
+      <el-table :data="rows" v-loading="loading" border stripe size="small" :fit="false" style="min-width: 1480px" @selection-change="(v) => (selected = v)">
         <el-table-column type="selection" width="40" />
         <el-table-column prop="orderNo" label="订单号" width="170">
           <template #default="{ row }">
