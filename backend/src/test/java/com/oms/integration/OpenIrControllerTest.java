@@ -140,5 +140,22 @@ public class OpenIrControllerTest {
         }
         assertNotNull(prioritized);
         assertEquals(10, prioritized.path("priority").asInt());
+
+        String rushBody = "{\"targetKey\":\"IR-SO-UNSHIPPED\",\"idempotencyKey\":\"OMS-PRI-DEDICATED-1\","
+                + "\"params\":{\"priority\":9,\"remark\":\"IR 专用口加急\"}}";
+        mockMvc.perform(post("/api/open/ir/prioritize")
+                        .header("X-Api-Key", "test-open-key")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(rushBody))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(0))
+                .andExpect(jsonPath("$.data.priority").value(9));
+        mockMvc.perform(post("/api/open/ir/prioritize")
+                        .header("X-Api-Key", "test-open-key")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(rushBody))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(0))
+                .andExpect(jsonPath("$.data.priority").value(9));
     }
 }

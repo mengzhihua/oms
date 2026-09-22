@@ -216,14 +216,63 @@ public class OpenApiController {
     public static class IrAction {
         private String type;
         private String targetKey;
+        private String orderNo;
         private String idempotencyKey;
         private Map<String, Object> params;
+    }
+
+    @PostMapping("/ir/hold")
+    public R<Object> irHold(@RequestBody IrAction cmd) {
+        return irTyped("OMS_HOLD", cmd);
+    }
+
+    @PostMapping("/ir/unhold")
+    public R<Object> irUnhold(@RequestBody IrAction cmd) {
+        return irTyped("OMS_UNHOLD", cmd);
+    }
+
+    @PostMapping("/ir/reroute")
+    public R<Object> irReroute(@RequestBody IrAction cmd) {
+        return irTyped("OMS_REROUTE_WAREHOUSE", cmd);
+    }
+
+    @PostMapping("/ir/auto")
+    public R<Object> irAuto(@RequestBody IrAction cmd) {
+        return irTyped("OMS_AUTO_PROCESS", cmd);
+    }
+
+    @PostMapping("/ir/cancel")
+    public R<Object> irCancel(@RequestBody IrAction cmd) {
+        return irTyped("OMS_CANCEL", cmd);
+    }
+
+    @PostMapping("/ir/prioritize")
+    public R<Object> irPrioritize(@RequestBody IrAction cmd) {
+        return irTyped("OMS_PRIORITIZE", cmd);
+    }
+
+    private R<Object> irTyped(String type, IrAction cmd) {
+        if (cmd == null) {
+            cmd = new IrAction();
+        }
+        cmd.setType(type);
+        return irAction(cmd);
     }
 
     /** IR 控制塔按订单号下发协同指令，避免依赖登录会话。 */
     @PostMapping("/ir/actions")
     public R<Object> irAction(@RequestBody IrAction cmd) {
-        if (cmd == null || StringUtils.isBlank(cmd.getType()) || StringUtils.isBlank(cmd.getTargetKey())) {
+        if (cmd == null) {
+            throw new BizException("type 与 targetKey 必填");
+        }
+        if (StringUtils.isBlank(cmd.getTargetKey())) {
+            if (!StringUtils.isBlank(cmd.getOrderNo())) {
+                cmd.setTargetKey(cmd.getOrderNo());
+            } else if (cmd.getParams() != null && cmd.getParams().get("orderNo") != null) {
+                cmd.setTargetKey(String.valueOf(cmd.getParams().get("orderNo")));
+            }
+        }
+        if (StringUtils.isBlank(cmd.getType()) || StringUtils.isBlank(cmd.getTargetKey())) {
             throw new BizException("type 与 targetKey 必填");
         }
         Map<String, Object> params = cmd.getParams() == null ? new LinkedHashMap<>() : cmd.getParams();
