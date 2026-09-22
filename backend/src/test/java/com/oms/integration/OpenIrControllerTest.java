@@ -80,11 +80,19 @@ public class OpenIrControllerTest {
         if ("HOLD".equals(stuck.path("status").asText())) {
             type = "OMS_UNHOLD";
         }
+        String holdBody = "{\"type\":\"" + type + "\",\"targetKey\":\"IR-SO-STUCK\","
+                + "\"idempotencyKey\":\"OMS-HOLD-1\","
+                + "\"params\":{\"reason\":\"IR 控制塔挂起\"}}";
         mockMvc.perform(post("/api/open/ir/actions")
                         .header("X-Api-Key", "test-open-key")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"type\":\"" + type + "\",\"targetKey\":\"IR-SO-STUCK\","
-                                + "\"params\":{\"reason\":\"IR 控制塔挂起\"}}"))
+                        .content(holdBody))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(0));
+        mockMvc.perform(post("/api/open/ir/actions")
+                        .header("X-Api-Key", "test-open-key")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(holdBody))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value(0));
         if ("OMS_UNHOLD".equals(type)) {

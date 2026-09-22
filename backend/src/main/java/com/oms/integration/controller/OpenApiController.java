@@ -22,6 +22,8 @@ import org.springframework.web.bind.annotation.*;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Supplier;
 
 /**
  * 对外开放接口（X-Api-Key 鉴权，见 AuthInterceptor）：
@@ -40,6 +42,7 @@ public class OpenApiController {
     private final SalesOrderMapper orderMapper;
     private final SalesOrderItemMapper itemMapper;
     private final InventoryMapper inventoryMapper;
+    private final ConcurrentHashMap<String, Object> actionCache = new ConcurrentHashMap<String, Object>();
 
     // ------------------------------------------------------------ 渠道
 
@@ -213,6 +216,7 @@ public class OpenApiController {
     public static class IrAction {
         private String type;
         private String targetKey;
+        private String idempotencyKey;
         private Map<String, Object> params;
     }
 
@@ -223,32 +227,58 @@ public class OpenApiController {
             throw new BizException("type 与 targetKey 必填");
         }
         Map<String, Object> params = cmd.getParams() == null ? new LinkedHashMap<>() : cmd.getParams();
-        Object result;
         try {
-            if ("OMS_HOLD".equals(cmd.getType())) {
-                result = orderService.hold(cmd.getTargetKey(), str(params.get("reason"), "IR控制塔挂起"));
-            } else if ("OMS_UNHOLD".equals(cmd.getType())) {
-                result = orderService.unhold(cmd.getTargetKey());
-            } else if ("OMS_REROUTE_WAREHOUSE".equals(cmd.getType())) {
-                result = orderService.reroute(cmd.getTargetKey(), str(params.get("warehouseCode"), null));
-            } else if ("OMS_AUTO_PROCESS".equals(cmd.getType())) {
-                result = orderService.autoProcess(cmd.getTargetKey());
-            } else if ("OMS_CANCEL".equals(cmd.getType())) {
-                result = orderService.cancel(cmd.getTargetKey(), str(params.get("reason"), "IR控制塔取消"));
-            } else if ("OMS_PRIORITIZE".equals(cmd.getType())) {
-                Integer priority = params.get("priority") == null
-                        ? 10 : Integer.parseInt(String.valueOf(params.get("priority")));
-                result = orderService.updateRemark(cmd.getTargetKey(),
-                        str(params.get("remark"), "IR控制塔加急"), priority);
-            } else {
+            Object result = executeOnce(cacheKey(cmd.getType(), cmd.getTargetKey(), cmd.getIdempotencyKey()), () -> {
+                if ("OMS_HOLD".equals(cmd.getType())) {
+                    return orderService.hold(cmd.getTargetKey(), str(params.get("reason"), "IR控制塔挂起"));
+                } else if ("OMS_UNHOLD".equals(cmd.getType())) {
+                    return orderService.unhold(cmd.getTargetKey());
+                } else if ("OMS_REROUTE_WAREHOUSE".equals(cmd.getType())) {
+                    return orderService.reroute(cmd.getTargetKey(), str(params.get("warehouseCode"), null));
+                } else if ("OMS_AUTO_PROCESS".equals(cmd.getType())) {
+                    return orderService.autoProcess(cmd.getTargetKey());
+                } else if ("OMS_CANCEL".equals(cmd.getType())) {
+                    return orderService.cancel(cmd.getTargetKey(), str(params.get("reason"), "IR控制塔取消"));
+                } else if ("OMS_PRIORITIZE".equals(cmd.getType())) {
+                    Integer priority = params.get("priority") == null
+                            ? 10 : Integer.parseInt(String.valueOf(params.get("priority")));
+                    return orderService.updateRemark(cmd.getTargetKey(),
+                            str(params.get("remark"), "IR控制塔加急"), priority);
+                }
                 throw new BizException("不支持的 IR 指令: " + cmd.getType());
-            }
+            });
             integrationService.logInbound("IR", cmd.getType(), cmd.getTargetKey(), cmd, true, null);
             return R.ok(result);
         } catch (RuntimeException e) {
             integrationService.logInbound("IR", cmd.getType(), cmd.getTargetKey(), cmd, false, e.getMessage());
             throw e;
         }
+    }
+
+    private Object executeOnce(String cacheKey, Supplier<Object> work) {
+        if (cacheKey == null) {
+            return work.get();
+        }
+        Object cached = actionCache.get(cacheKey);
+        if (cached != null) {
+            return cached;
+        }
+        synchronized (actionCache) {
+            cached = actionCache.get(cacheKey);
+            if (cached != null) {
+                return cached;
+            }
+            Object created = work.get();
+            actionCache.put(cacheKey, created);
+            return created;
+        }
+    }
+
+    private static String cacheKey(String type, String targetKey, String idempotencyKey) {
+        if (idempotencyKey == null || idempotencyKey.trim().isEmpty() || "null".equals(idempotencyKey)) {
+            return null;
+        }
+        return type + "|" + (targetKey == null ? "" : targetKey) + "|" + idempotencyKey.trim();
     }
 
     /** IR 控制塔拉取订单 / 库存 / 按 SKU+仓+渠道的日销，避免登录分页和报表口径不一致。 */
