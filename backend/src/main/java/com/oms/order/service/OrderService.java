@@ -31,7 +31,7 @@ import java.util.*;
 /**
  * 销售订单状态机：
  * CREATED -> AUDITED -> ALLOCATED(分仓+预占) -> PUSHED(已推 WMS) -> SHIPPED(WMS 回传发货) -> COMPLETED(签收)
- * CREATED/AUDITED <-> HOLD(挂起)
+ * CREATED/AUDITED -> HOLD(挂起)，解除挂起回到挂起前的状态
  * CREATED/AUDITED/HOLD/ALLOCATED/PUSHED -> CANCELLED（ALLOCATED/PUSHED 取消时释放预占，PUSHED 需通知 WMS）
  * ALLOCATED 路由到多仓时父单变为 SPLIT，生成子单
  */
@@ -221,8 +221,21 @@ public class OrderService {
         SalesOrder o = get(orderNo);
         require(o, HOLD);
         o.setHoldReason(null);
-        transit(o, "UNHOLD", CREATED, "解除挂起");
+        transit(o, "UNHOLD", statusBeforeHold(orderNo), "解除挂起");
         return o;
+    }
+
+    /** 解除挂起回到挂起前的状态。旧日志没有来源状态时回到已创建。 */
+    String statusBeforeHold(String orderNo) {
+        OrderLog hold = logMapper.selectOne(new LambdaQueryWrapper<OrderLog>()
+                .eq(OrderLog::getOrderNo, orderNo)
+                .eq(OrderLog::getAction, "HOLD")
+                .orderByDesc(OrderLog::getId)
+                .last("LIMIT 1"));
+        if (hold != null && (CREATED.equals(hold.getFromStatus()) || AUDITED.equals(hold.getFromStatus()))) {
+            return hold.getFromStatus();
+        }
+        return CREATED;
     }
 
     /** 分仓路由 + 库存预占；多仓命中时自动拆单 */
@@ -410,7 +423,33 @@ public class OrderService {
         payload.put("receiverName", o.getReceiverName());
         payload.put("receiverPhone", o.getReceiverPhone());
         payload.put("address", String.join("", nvl(o.getProvince()), nvl(o.getCity()), nvl(o.getDistrict()), o.getAddress()));
+        List<Map<String, Object>> transportLines = new ArrayList<>();
+        for (SalesOrderItem it : items) {
+            Map<String, Object> line = new LinkedHashMap<>();
+            line.put("sku", it.getSku());
+            line.put("qty", it.getShippedQty() == null ? it.getQty() : it.getShippedQty());
+            transportLines.add(line);
+        }
+        payload.put("items", transportLines);
         o.setTmsOrderNo(integrationService.createTransportInTms(o.getOrderNo(), payload));
+        Map<String, Object> sap = new LinkedHashMap<>();
+        sap.put("orderNo", o.getOrderNo());
+        if (!isBlank(o.getCustomerCode())) {
+            sap.put("kunnr", o.getCustomerCode());
+        }
+        BigDecimal pieces = BigDecimal.ZERO;
+        List<Map<String, Object>> sapItems = new ArrayList<>();
+        for (SalesOrderItem it : items) {
+            int q = it.getShippedQty() == null ? n(it.getQty()) : it.getShippedQty();
+            pieces = pieces.add(BigDecimal.valueOf(q));
+            Map<String, Object> line = new LinkedHashMap<>();
+            line.put("sku", it.getSku());
+            line.put("qty", q);
+            sapItems.add(line);
+        }
+        sap.put("qty", pieces);
+        sap.put("items", sapItems);
+        o.setSapDeliveryNo(integrationService.postDeliveryToSap(o.getOrderNo(), sap));
         transit(o, "SHIP", SHIPPED, "运单 " + trackingNo);
         return o;
     }

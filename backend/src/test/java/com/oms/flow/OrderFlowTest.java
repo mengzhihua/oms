@@ -94,6 +94,9 @@ class OrderFlowTest {
         SalesOrder shipped = orderService.shipped(o.getOrderNo(), "SF", "SF123", null, null);
         assertEquals(OrderService.SHIPPED, shipped.getStatus());
         assertNotNull(shipped.getTmsOrderNo());
+        assertEquals("DN-" + o.getOrderNo(), shipped.getSapDeliveryNo());
+        assertEquals(0, integrationLogMapper.selectCount(new LambdaQueryWrapper<IntegrationLog>()
+                .eq(IntegrationLog::getRefNo, o.getOrderNo()).eq(IntegrationLog::getAction, "POST_DELIVERY")));
         assertEquals(onHandBefore - 2, inv("WH-GZ", "SKU001").getQtyOnHand());
         for (SalesOrderItem it : orderService.items(o.getOrderNo())) {
             assertEquals(2, it.getShippedQty());
@@ -153,6 +156,16 @@ class OrderFlowTest {
         SalesOrderItem first = orderService.items(c0.getOrderNo()).get(0);
         assertEquals(avail + first.getQty(), InventoryService.available(inv(c0.getWarehouseCode(), first.getSku())));
         assertEquals(0, first.getReservedQty());
+    }
+
+    @Test
+    void unholdRestoresAuditedStatus() {
+        SalesOrder o = orderService.create(req("SHOP-OFF01", "上海市", item("SKU001", 1, "10")));
+        orderService.audit(o.getOrderNo(), "先审");
+        orderService.hold(o.getOrderNo(), "暂缓");
+        assertEquals(OrderService.HOLD, orderService.get(o.getOrderNo()).getStatus());
+        orderService.unhold(o.getOrderNo());
+        assertEquals(OrderService.AUDITED, orderService.get(o.getOrderNo()).getStatus());
     }
 
     @Test
