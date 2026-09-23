@@ -196,6 +196,13 @@ public class OrderController {
         return R.ok(orderService.split(orderNo, req.getItems()));
     }
 
+    /** 把同一客户、同一地址、窗口内的待审核或已审核订单并进当前单。 */
+    @PostMapping("/{orderNo}/merge")
+    public R<SalesOrder> merge(
+            @PathVariable String orderNo, @RequestParam(defaultValue = "30") int minutes) {
+        return R.ok(orderService.merge(orderNo, minutes));
+    }
+
     @Data
     public static class BatchRequest {
         private List<String> orderNos;
