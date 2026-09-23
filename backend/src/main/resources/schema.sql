@@ -191,6 +191,7 @@ CREATE TABLE IF NOT EXISTS oms_sales_order (
   tracking_no VARCHAR(64),
   wms_order_no VARCHAR(64),
   tms_order_no VARCHAR(64),
+  sap_delivery_no VARCHAR(64),
   buyer_remark VARCHAR(255),
   seller_remark VARCHAR(255),
   hold_reason VARCHAR(255),
@@ -207,6 +208,7 @@ CREATE TABLE IF NOT EXISTS oms_sales_order (
 );
 CREATE INDEX idx_so_status ON oms_sales_order (status);
 CREATE INDEX idx_so_channel_order ON oms_sales_order (shop_code, channel_order_no);
+ALTER TABLE oms_sales_order ADD COLUMN IF NOT EXISTS sap_delivery_no VARCHAR(64);
 
 CREATE TABLE IF NOT EXISTS oms_sales_order_item (
   id BIGINT AUTO_INCREMENT PRIMARY KEY,

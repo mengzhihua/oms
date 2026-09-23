@@ -94,6 +94,9 @@ class OrderFlowTest {
         SalesOrder shipped = orderService.shipped(o.getOrderNo(), "SF", "SF123", null, null);
         assertEquals(OrderService.SHIPPED, shipped.getStatus());
         assertNotNull(shipped.getTmsOrderNo());
+        assertEquals("DN-" + o.getOrderNo(), shipped.getSapDeliveryNo());
+        assertEquals(0, integrationLogMapper.selectCount(new LambdaQueryWrapper<IntegrationLog>()
+                .eq(IntegrationLog::getRefNo, o.getOrderNo()).eq(IntegrationLog::getAction, "POST_DELIVERY")));
         assertEquals(onHandBefore - 2, inv("WH-GZ", "SKU001").getQtyOnHand());
         for (SalesOrderItem it : orderService.items(o.getOrderNo())) {
             assertEquals(2, it.getShippedQty());

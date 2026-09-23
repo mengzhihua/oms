@@ -38,6 +38,7 @@ public class SalesOrder extends BaseEntity {
     private String trackingNo;
     private String wmsOrderNo;
     private String tmsOrderNo;
+    private String sapDeliveryNo;
     private String buyerRemark;
     private String sellerRemark;
     private String holdReason;

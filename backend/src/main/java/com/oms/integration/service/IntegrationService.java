@@ -26,6 +26,7 @@ public class IntegrationService {
     public static final String IN = "IN";
     public static final String WMS = "WMS";
     public static final String TMS = "TMS";
+    public static final String SAP = "SAP";
     public static final String CHANNEL = "CHANNEL";
 
     private final IntegrationLogMapper logMapper;
@@ -40,6 +41,10 @@ public class IntegrationService {
     private String wmsApiKey;
     @Value("${oms.integration.tms-api-key:tms-open-key}")
     private String tmsApiKey;
+    @Value("${oms.integration.sap-url:http://localhost:8085}")
+    private String sapUrl;
+    @Value("${oms.integration.sap-api-key:sap-open-key}")
+    private String sapApiKey;
     @Value("${oms.integration.mock:true}")
     private boolean mock;
 
@@ -73,6 +78,63 @@ public class IntegrationService {
     /** 在 TMS 创建运输单（发货后），返回 TMS 单号 */
     public String createTransportInTms(String orderNo, Map<String, Object> payload) {
         return call(TMS, "CREATE_TRANSPORT", orderNo, tmsUrl + "/api/open/transport-order", payload, "TMS-" + orderNo);
+    }
+
+    /**
+     * 把 OMS 发货过账到 SAP 交货。mock 时直接返回交货单号，不写集成日志，避免发货测试多一条出站记录。
+     * 真实模式要求响应 code 为 0，并取 data.vbeln。
+     */
+    public String postDeliveryToSap(String orderNo, Map<String, Object> payload) {
+        if (mock) {
+            return "DN-" + orderNo;
+        }
+        IntegrationLog l = new IntegrationLog();
+        l.setDirection(OUT);
+        l.setTarget(SAP);
+        l.setAction("POST_DELIVERY");
+        l.setRefNo(orderNo);
+        l.setRequestBody(json(payload));
+        try {
+            requireConfigured(false, sapUrl, SAP);
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_JSON);
+            if (sapApiKey != null && !sapApiKey.isEmpty()) {
+                headers.set("X-Api-Key", sapApiKey);
+            }
+            String body = rest.postForObject(sapUrl + "/api/open/events/delivery",
+                    new HttpEntity<>(payload, headers), String.class);
+            Map<?, ?> response = objectMapper.readValue(body == null ? "{}" : body, Map.class);
+            Object code = response.get("code");
+            if (code != null && !"0".equals(String.valueOf(code))) {
+                String msg = String.valueOf(response.get("msg"));
+                l.setSuccess(0);
+                l.setResponseBody(body);
+                l.setErrorMsg(trim(msg));
+                logMapper.insert(l);
+                throw new BizException("SAP 调用失败: " + msg);
+            }
+            l.setSuccess(1);
+            l.setResponseBody(body);
+            logMapper.insert(l);
+            Object data = response.get("data");
+            if (data instanceof Map && ((Map<?, ?>) data).get("vbeln") != null) {
+                return String.valueOf(((Map<?, ?>) data).get("vbeln"));
+            }
+            return "DN-" + orderNo;
+        } catch (BizException e) {
+            if (l.getId() == null) {
+                l.setSuccess(0);
+                l.setErrorMsg(trim(e.getMessage()));
+                logMapper.insert(l);
+            }
+            throw e;
+        } catch (Exception e) {
+            l.setSuccess(0);
+            l.setErrorMsg(trim(e.getMessage()));
+            logMapper.insert(l);
+            log.warn("SAP POST_DELIVERY 调用失败: {}", e.getMessage());
+            throw new BizException("SAP 调用失败: " + e.getMessage());
+        }
     }
 
     /** 记录入站回传 */

@@ -432,6 +432,24 @@ public class OrderService {
         }
         payload.put("items", transportLines);
         o.setTmsOrderNo(integrationService.createTransportInTms(o.getOrderNo(), payload));
+        Map<String, Object> sap = new LinkedHashMap<>();
+        sap.put("orderNo", o.getOrderNo());
+        if (!isBlank(o.getCustomerCode())) {
+            sap.put("kunnr", o.getCustomerCode());
+        }
+        BigDecimal pieces = BigDecimal.ZERO;
+        List<Map<String, Object>> sapItems = new ArrayList<>();
+        for (SalesOrderItem it : items) {
+            int q = it.getShippedQty() == null ? n(it.getQty()) : it.getShippedQty();
+            pieces = pieces.add(BigDecimal.valueOf(q));
+            Map<String, Object> line = new LinkedHashMap<>();
+            line.put("sku", it.getSku());
+            line.put("qty", q);
+            sapItems.add(line);
+        }
+        sap.put("qty", pieces);
+        sap.put("items", sapItems);
+        o.setSapDeliveryNo(integrationService.postDeliveryToSap(o.getOrderNo(), sap));
         transit(o, "SHIP", SHIPPED, "运单 " + trackingNo);
         return o;
     }

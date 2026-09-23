@@ -59,6 +59,8 @@ oms:
     tms-url: ${OMS_TMS_URL:http://localhost:8082}
     wms-api-key: ${OMS_WMS_API_KEY:wms-open-key}
     tms-api-key: ${OMS_TMS_API_KEY:tms-open-key}
+    sap-url: ${OMS_SAP_URL:http://localhost:8085}
+    sap-api-key: ${OMS_SAP_API_KEY:sap-open-key}
     mock: ${OMS_INTEGRATION_MOCK:true}
 
 ---
