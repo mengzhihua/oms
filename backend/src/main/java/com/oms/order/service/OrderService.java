@@ -454,10 +454,13 @@ public class OrderService {
         return o;
     }
 
-    /** TMS 签收回传 -> 完成 */
+    /** TMS 签收回传 -> 完成。已经完成的订单再次签收直接返回，不再写一条签收日志。 */
     @Transactional
     public SalesOrder signed(String orderNo, String remark) {
         SalesOrder o = get(orderNo);
+        if (COMPLETED.equals(o.getStatus())) {
+            return o;
+        }
         require(o, SHIPPED);
         o.setSignedAt(LocalDateTime.now());
         o.setCompletedAt(LocalDateTime.now());

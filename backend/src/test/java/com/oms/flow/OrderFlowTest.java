@@ -105,6 +105,9 @@ class OrderFlowTest {
 
         SalesOrder done = orderService.signed(o.getOrderNo(), "签收");
         assertEquals(OrderService.COMPLETED, done.getStatus());
+        SalesOrder again = orderService.signed(o.getOrderNo(), "再次签收");
+        assertEquals(OrderService.COMPLETED, again.getStatus());
+        assertEquals(1, orderService.logs(o.getOrderNo()).stream().filter(l -> "SIGN".equals(l.getAction())).count());
         assertTrue(orderService.logs(o.getOrderNo()).size() >= 5);
 
         // 售后退货：审核 -> 入库回增 -> 退款 -> 完成
