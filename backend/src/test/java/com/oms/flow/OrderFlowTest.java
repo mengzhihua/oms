@@ -156,6 +156,16 @@ class OrderFlowTest {
     }
 
     @Test
+    void unholdRestoresAuditedStatus() {
+        SalesOrder o = orderService.create(req("SHOP-OFF01", "上海市", item("SKU001", 1, "10")));
+        orderService.audit(o.getOrderNo(), "先审");
+        orderService.hold(o.getOrderNo(), "暂缓");
+        assertEquals(OrderService.HOLD, orderService.get(o.getOrderNo()).getStatus());
+        orderService.unhold(o.getOrderNo());
+        assertEquals(OrderService.AUDITED, orderService.get(o.getOrderNo()).getStatus());
+    }
+
+    @Test
     void shortageRejectsAllocation() {
         SalesOrder o = orderService.create(req("SHOP-OFF01", "上海市", item("SKU002", 100000, "1")));
         orderService.audit(o.getOrderNo(), null);

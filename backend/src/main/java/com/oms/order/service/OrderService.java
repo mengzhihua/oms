@@ -31,7 +31,7 @@ import java.util.*;
 /**
  * 销售订单状态机：
  * CREATED -> AUDITED -> ALLOCATED(分仓+预占) -> PUSHED(已推 WMS) -> SHIPPED(WMS 回传发货) -> COMPLETED(签收)
- * CREATED/AUDITED <-> HOLD(挂起)
+ * CREATED/AUDITED -> HOLD(挂起)，解除挂起回到挂起前的状态
  * CREATED/AUDITED/HOLD/ALLOCATED/PUSHED -> CANCELLED（ALLOCATED/PUSHED 取消时释放预占，PUSHED 需通知 WMS）
  * ALLOCATED 路由到多仓时父单变为 SPLIT，生成子单
  */
@@ -221,8 +221,21 @@ public class OrderService {
         SalesOrder o = get(orderNo);
         require(o, HOLD);
         o.setHoldReason(null);
-        transit(o, "UNHOLD", CREATED, "解除挂起");
+        transit(o, "UNHOLD", statusBeforeHold(orderNo), "解除挂起");
         return o;
+    }
+
+    /** 解除挂起回到挂起前的状态。旧日志没有来源状态时回到已创建。 */
+    String statusBeforeHold(String orderNo) {
+        OrderLog hold = logMapper.selectOne(new LambdaQueryWrapper<OrderLog>()
+                .eq(OrderLog::getOrderNo, orderNo)
+                .eq(OrderLog::getAction, "HOLD")
+                .orderByDesc(OrderLog::getId)
+                .last("LIMIT 1"));
+        if (hold != null && (CREATED.equals(hold.getFromStatus()) || AUDITED.equals(hold.getFromStatus()))) {
+            return hold.getFromStatus();
+        }
+        return CREATED;
     }
 
     /** 分仓路由 + 库存预占；多仓命中时自动拆单 */

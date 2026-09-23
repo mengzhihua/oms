@@ -88,7 +88,7 @@ OMS_OPEN_API_KEY=xxx scripts/smoke.sh   # 需先以相同 OMS_OPEN_API_KEY 启�
 
 订单快照和协同指令见 [技术方案](docs/技术方案.md)。
 
-有 API Key 时，控制塔读 `GET /api/open/ir/snapshots`（订单、库存、日销），写 `POST /api/open/ir/actions`。统一口不可用时回退 `/hold`、`/unhold`、`/reroute`、`/auto`、`/cancel`、`/prioritize`。没有 Key 时走登录后的 `POST /api/order/{orderNo}/…`，加急走 `/remark`。挂起只接受 `CREATED` / `AUDITED`，解除挂起回到 `CREATED`。
+有 API Key 时，控制塔读 `GET /api/open/ir/snapshots`（订单、库存、日销），写 `POST /api/open/ir/actions`。统一口不可用时回退 `/hold`、`/unhold`、`/reroute`、`/auto`、`/cancel`、`/prioritize`。没有 Key 时走登录后的 `POST /api/order/{orderNo}/…`，加急走 `/remark`。挂起只接受 `CREATED` / `AUDITED`，解除挂起回到挂起前的状态。
 
 ## 发布包（开箱即用）
 
