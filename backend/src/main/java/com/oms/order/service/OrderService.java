@@ -13,6 +13,7 @@ import com.oms.integration.service.IntegrationService;
 import com.oms.inventory.service.InventoryService;
 import com.oms.order.dto.OrderCreateRequest;
 import com.oms.order.entity.OrderLog;
+import com.oms.order.entity.OrderNotice;
 import com.oms.order.entity.SalesOrder;
 import com.oms.order.entity.SalesOrderItem;
 import com.oms.order.mapper.OrderLogMapper;
@@ -59,6 +60,7 @@ public class OrderService {
     private final InventoryService inventoryService;
     private final RoutingService routingService;
     private final IntegrationService integrationService;
+    private final OrderNoticeService orderNoticeService;
 
     // ---------------------------------------------------------------- 查询
 
@@ -517,7 +519,15 @@ public class OrderService {
         sap.put("items", sapItems);
         o.setSapDeliveryNo(integrationService.postDeliveryToSap(o.getOrderNo(), sap));
         transit(o, "SHIP", SHIPPED, "运单 " + trackingNo);
+        List<OrderNotice> notices = orderNoticeService.record(o);
+        if (!notices.isEmpty()) {
+            log(o, "NOTICE", SHIPPED, SHIPPED, OrderNoticeService.remark(notices));
+        }
         return o;
+    }
+
+    public List<OrderNotice> notices(String orderNo) {
+        return orderNoticeService.list(orderNo);
     }
 
     /** TMS 签收回传 -> 完成。已经完成的订单再次签收直接返回，不再写一条签收日志。 */

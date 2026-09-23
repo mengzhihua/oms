@@ -344,3 +344,15 @@ CREATE TABLE IF NOT EXISTS oms_op_log (
   created_at TIMESTAMP
 );
 CREATE INDEX idx_op_log_created ON oms_op_log (created_at);
+
+CREATE TABLE IF NOT EXISTS oms_order_notice (
+  id BIGINT AUTO_INCREMENT PRIMARY KEY,
+  order_no VARCHAR(32) NOT NULL,
+  channel VARCHAR(16) NOT NULL,
+  target VARCHAR(128) NOT NULL,
+  content VARCHAR(500) NOT NULL,
+  status VARCHAR(16) NOT NULL,
+  detail VARCHAR(255),
+  created_at TIMESTAMP,
+  updated_at TIMESTAMP
+);
