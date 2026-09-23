@@ -80,6 +80,12 @@ OMS_OPEN_API_KEY=xxx scripts/smoke.sh   # 需先以相同 OMS_OPEN_API_KEY 启�
 | WMS | `POST /api/open/wms/return-received` | 退货入库回传 |
 | TMS | `POST /api/open/tms/signed` / `tms/track` | 签收 / 轨迹回传 |
 
+## 控制塔对接
+
+订单快照和协同指令见 [技术方案](docs/技术方案.md)。
+
+有 API Key 时，控制塔读 `GET /api/open/ir/snapshots`（订单、库存、日销），写 `POST /api/open/ir/actions`。统一口不可用时回退 `/hold`、`/unhold`、`/reroute`、`/auto`、`/cancel`、`/prioritize`。没有 Key 时走登录后的 `POST /api/order/{orderNo}/…`，加急走 `/remark`。挂起只接受 `CREATED` / `AUDITED`，解除挂起回到 `CREATED`。
+
 ## 发布包（开箱即用）
 
 前端生产构建打进 Spring Boot 可执行 JAR。三种用法：
