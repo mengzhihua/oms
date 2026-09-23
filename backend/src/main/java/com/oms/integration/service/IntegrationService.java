@@ -32,10 +32,14 @@ public class IntegrationService {
     private final ObjectMapper objectMapper;
     private final RestTemplate rest = new RestTemplate();
 
-    @Value("${oms.integration.wms-url:}")
+    @Value("${oms.integration.wms-url:http://localhost:8083}")
     private String wmsUrl;
-    @Value("${oms.integration.tms-url:}")
+    @Value("${oms.integration.tms-url:http://localhost:8082}")
     private String tmsUrl;
+    @Value("${oms.integration.wms-api-key:wms-open-key}")
+    private String wmsApiKey;
+    @Value("${oms.integration.tms-api-key:tms-open-key}")
+    private String tmsApiKey;
     @Value("${oms.integration.mock:true}")
     private boolean mock;
 
@@ -92,31 +96,59 @@ public class IntegrationService {
         l.setRefNo(refNo);
         l.setRequestBody(json(payload));
         String baseUrl = WMS.equals(target) ? wmsUrl : tmsUrl;
-        if (mock || baseUrl == null || baseUrl.isEmpty()) {
+        if (mock) {
             l.setSuccess(1);
             l.setResponseBody("{\"mock\":true,\"result\":\"" + mockResult + "\"}");
             logMapper.insert(l);
             return mockResult;
         }
         try {
+            requireConfigured(false, baseUrl, target);
             HttpHeaders h = new HttpHeaders();
             h.setContentType(MediaType.APPLICATION_JSON);
+            String apiKey = WMS.equals(target) ? wmsApiKey : tmsApiKey;
+            if (apiKey != null && !apiKey.isEmpty()) {
+                h.set("X-Api-Key", apiKey);
+            }
             String body = rest.postForObject(url, new HttpEntity<>(payload, h), String.class);
+            Map<?, ?> m = objectMapper.readValue(body == null ? "{}" : body, Map.class);
+            Object code = m.get("code");
+            if (code != null && !"0".equals(String.valueOf(code))) {
+                String msg = String.valueOf(m.get("msg"));
+                l.setSuccess(0);
+                l.setResponseBody(body);
+                l.setErrorMsg(trim(msg));
+                logMapper.insert(l);
+                throw new BizException(target + " 调用失败: " + msg);
+            }
             l.setSuccess(1);
             l.setResponseBody(body);
             logMapper.insert(l);
-            Map<?, ?> m = objectMapper.readValue(body, Map.class);
             Object data = m.get("data");
             if (data instanceof Map && ((Map<?, ?>) data).get("code") != null) {
                 return String.valueOf(((Map<?, ?>) data).get("code"));
             }
             return data == null ? mockResult : String.valueOf(data);
+        } catch (BizException e) {
+            if (l.getId() == null) {
+                l.setSuccess(0);
+                l.setErrorMsg(trim(e.getMessage()));
+                logMapper.insert(l);
+            }
+            throw e;
         } catch (Exception e) {
             l.setSuccess(0);
             l.setErrorMsg(trim(e.getMessage()));
             logMapper.insert(l);
             log.warn("{} {} 调用失败: {}", target, action, e.getMessage());
             throw new BizException(target + " 调用失败: " + e.getMessage());
+        }
+    }
+
+    /** mock=false 且地址为空时拒绝假装成功。 */
+    static void requireConfigured(boolean mock, String baseUrl, String target) {
+        if (!mock && (baseUrl == null || baseUrl.isEmpty())) {
+            throw new BizException(target + " 地址未配置，拒绝模拟成功");
         }
     }
 

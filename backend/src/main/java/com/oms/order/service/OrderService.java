@@ -410,6 +410,14 @@ public class OrderService {
         payload.put("receiverName", o.getReceiverName());
         payload.put("receiverPhone", o.getReceiverPhone());
         payload.put("address", String.join("", nvl(o.getProvince()), nvl(o.getCity()), nvl(o.getDistrict()), o.getAddress()));
+        List<Map<String, Object>> transportLines = new ArrayList<>();
+        for (SalesOrderItem it : items) {
+            Map<String, Object> line = new LinkedHashMap<>();
+            line.put("sku", it.getSku());
+            line.put("qty", it.getShippedQty() == null ? it.getQty() : it.getShippedQty());
+            transportLines.add(line);
+        }
+        payload.put("items", transportLines);
         o.setTmsOrderNo(integrationService.createTransportInTms(o.getOrderNo(), payload));
         transit(o, "SHIP", SHIPPED, "运单 " + trackingNo);
         return o;
