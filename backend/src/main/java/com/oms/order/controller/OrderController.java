@@ -199,7 +199,7 @@ public class OrderController {
     /** 把同一客户、同一地址、窗口内的待审核或已审核订单并进当前单。 */
     @PostMapping("/{orderNo}/merge")
     public R<SalesOrder> merge(
-            @PathVariable String orderNo, @RequestParam(defaultValue = "30") int minutes) {
+            @PathVariable String orderNo, @RequestParam(required = false) Integer minutes) {
         return R.ok(orderService.merge(orderNo, minutes));
     }
 

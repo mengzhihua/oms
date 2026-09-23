@@ -14,6 +14,7 @@ const columns = [
   { prop: 'channelCode', label: '所属渠道', type: 'select', options: 'channel', required: true, filter: true, width: 130 },
   { prop: 'defaultWarehouseCode', label: '默认发货仓', type: 'select', options: 'warehouse', width: 140 },
   { prop: 'autoAudit', label: '自动审核', type: 'select', width: 90, default: 0, options: [{ label: '是', value: 1 }, { label: '否', value: 0 }] },
+  { prop: 'mergeMinutes', label: '合单窗口(分钟)', type: 'number', min: 0, width: 140 },
   { prop: 'contact', label: '联系人', width: 100 },
   { prop: 'phone', label: '电话', width: 130 },
   statusCol

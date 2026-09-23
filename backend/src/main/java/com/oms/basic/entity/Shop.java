@@ -14,6 +14,8 @@ public class Shop extends BaseEntity {
     private String channelCode;
     private String defaultWarehouseCode;
     private Integer autoAudit;
+    /** 合单时间窗，分钟。空则用 30。 */
+    private Integer mergeMinutes;
     private String contact;
     private String phone;
     private Integer status;

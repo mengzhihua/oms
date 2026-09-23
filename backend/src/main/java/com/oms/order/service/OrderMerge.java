@@ -10,6 +10,17 @@ public final class OrderMerge {
 
     private OrderMerge() {}
 
+    /** 请求里显式给了分钟就用请求值；否则用店铺配置；都没有则 30 分钟。 */
+    public static int window(Integer shopMinutes, Integer requested) {
+        if (requested != null && requested >= 0) {
+            return requested;
+        }
+        if (shopMinutes != null && shopMinutes >= 0) {
+            return shopMinutes;
+        }
+        return DEFAULT_MINUTES;
+    }
+
     public static boolean canMerge(SalesOrder target, SalesOrder other, int minutes) {
         if (target == null || other == null || minutes < 0) {
             return false;

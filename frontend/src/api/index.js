@@ -44,7 +44,7 @@ export const order = {
   cancel: (orderNo, reason) => http.post(`/order/${orderNo}/cancel`, { reason }),
   remark: (orderNo, data) => http.post(`/order/${orderNo}/remark`, data),
   split: (orderNo, items) => http.post(`/order/${orderNo}/split`, { items }),
-  merge: (orderNo, minutes = 30) => http.post(`/order/${orderNo}/merge`, null, { params: { minutes } }),
+  merge: (orderNo, minutes) => http.post(`/order/${orderNo}/merge`, null, minutes == null ? undefined : { params: { minutes } }),
   batch: (data) => http.post('/order/batch', data),
   importCsv: (file) => {
     const fd = new FormData()
