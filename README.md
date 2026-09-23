@@ -4,6 +4,8 @@ OTWB 供应链平台中的订单中枢：承接多渠道（天猫/京东/抖音/
 推送 WMS、发货/签收回传、售后退换货与退款，并为渠道提供可售库存。与本组织的 WMS / TMS 系统同构
 （Spring Boot 2.7 + MyBatis-Plus / Vue 3 + Element Plus）。
 
+项目亮点见 [docs/项目亮点.md](docs/项目亮点.md)。
+
 ## 功能范围
 
 | 模块 | 能力 |
