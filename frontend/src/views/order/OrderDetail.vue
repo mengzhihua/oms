@@ -13,7 +13,7 @@
           <el-button v-if="['CREATED', 'AUDITED'].includes(o.status)" type="warning" @click="reason('挂起原因', (r) => order.hold(o.orderNo, r))">挂起</el-button>
           <el-button v-if="o.status === 'HOLD'" type="primary" @click="run(() => order.unhold(o.orderNo), '解挂')">解挂</el-button>
           <el-button v-if="o.status === 'AUDITED'" type="primary" @click="run(() => order.allocate(o.orderNo), '分仓预占')">分仓预占</el-button>
-          <el-button v-if="['CREATED', 'AUDITED'].includes(o.status)" @click="run(() => order.merge(o.orderNo, 30), '合单')">合入同时段订单</el-button>
+          <el-button v-if="['CREATED', 'AUDITED'].includes(o.status)" @click="run(() => order.merge(o.orderNo), '合单')">合入同时段订单</el-button>
           <el-button v-if="o.status === 'ALLOCATED'" @click="splitVisible = true">手工拆单</el-button>
           <el-button v-if="o.status === 'ALLOCATED'" type="primary" @click="run(() => order.push(o.orderNo), '推送 WMS')">推送 WMS</el-button>
           <el-button v-if="['CREATED', 'AUDITED'].includes(o.status)" type="success" @click="run(() => order.auto(o.orderNo), '一键处理')">一键处理</el-button>

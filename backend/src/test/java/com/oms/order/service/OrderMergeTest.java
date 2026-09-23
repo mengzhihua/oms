@@ -1,5 +1,6 @@
 package com.oms.order.service;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -8,6 +9,14 @@ import java.time.LocalDateTime;
 import org.junit.jupiter.api.Test;
 
 class OrderMergeTest {
+    @Test
+    void shopWindowIsUsedWhenTheRequestOmitsMinutes() {
+        assertEquals(15, OrderMerge.window(15, null));
+        assertEquals(45, OrderMerge.window(15, 45));
+        assertEquals(OrderMerge.DEFAULT_MINUTES, OrderMerge.window(null, null));
+        assertEquals(OrderMerge.DEFAULT_MINUTES, OrderMerge.window(-1, -5));
+    }
+
     @Test
     void sameCustomerAndAddressWithinWindowCanMerge() {
         SalesOrder target = order("SO-1", "CUST-1", "CREATED", LocalDateTime.of(2026, 9, 23, 10, 0));

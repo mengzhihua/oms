@@ -355,9 +355,9 @@ public class OrderService {
 
     /** 把同一客户、同一地址、窗口内的待审核或已审核订单并进当前单。没有可并的单时原样返回。 */
     @Transactional
-    public SalesOrder merge(String orderNo, int minutes) {
-        int window = minutes < 0 ? OrderMerge.DEFAULT_MINUTES : minutes;
+    public SalesOrder merge(String orderNo, Integer minutes) {
         SalesOrder target = get(orderNo);
+        int window = OrderMerge.window(shopMinutes(target.getShopCode()), minutes);
         require(target, CREATED, AUDITED);
         List<SalesOrder> peers =
                 orderMapper.selectList(
@@ -382,8 +382,16 @@ public class OrderService {
         target.setGoodsAmount(goods);
         target.setPayAmount(goods.add(nz(target.getFreight())).subtract(nz(target.getDiscount())));
         orderMapper.updateById(target);
-        log(target, "MERGE", target.getStatus(), target.getStatus(), "合入 " + absorbed + " 张同时段订单");
+        log(target, "MERGE", target.getStatus(), target.getStatus(), "合入 " + absorbed + " 张，窗口 " + window + " 分钟");
         return get(orderNo);
+    }
+
+    private Integer shopMinutes(String shopCode) {
+        if (shopCode == null || shopCode.trim().isEmpty()) {
+            return null;
+        }
+        Shop shop = shopMapper.selectOne(new LambdaQueryWrapper<Shop>().eq(Shop::getCode, shopCode.trim()));
+        return shop == null ? null : shop.getMergeMinutes();
     }
 
     private void absorb(SalesOrder target, SalesOrder other) {

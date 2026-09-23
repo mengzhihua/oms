@@ -18,6 +18,7 @@ CREATE TABLE IF NOT EXISTS oms_shop (
   channel_code VARCHAR(32) NOT NULL,
   default_warehouse_code VARCHAR(32),
   auto_audit INT DEFAULT 0,
+  merge_minutes INT,
   contact VARCHAR(64),
   phone VARCHAR(32),
   status INT DEFAULT 1,
@@ -25,6 +26,8 @@ CREATE TABLE IF NOT EXISTS oms_shop (
   updated_at TIMESTAMP,
   CONSTRAINT uk_shop_code UNIQUE (code)
 );
+
+ALTER TABLE oms_shop ADD COLUMN IF NOT EXISTS merge_minutes INT;
 
 CREATE TABLE IF NOT EXISTS oms_customer (
   id BIGINT AUTO_INCREMENT PRIMARY KEY,
