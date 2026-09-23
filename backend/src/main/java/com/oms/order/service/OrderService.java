@@ -47,6 +47,7 @@ public class OrderService {
     public static final String COMPLETED = "COMPLETED";
     public static final String CANCELLED = "CANCELLED";
     public static final String SPLIT = "SPLIT";
+    public static final String MERGED = "MERGED";
 
     private final SalesOrderMapper orderMapper;
     private final SalesOrderItemMapper itemMapper;
@@ -350,6 +351,71 @@ public class OrderService {
         log(o, "SPLIT", o.getStatus(), o.getStatus(), "手工拆出子单 " + child.getOrderNo());
         log(child, "SPLIT_CHILD", null, child.getStatus(), "拆自 " + o.getOrderNo());
         return child;
+    }
+
+    /** 把同一客户、同一地址、窗口内的待审核或已审核订单并进当前单。没有可并的单时原样返回。 */
+    @Transactional
+    public SalesOrder merge(String orderNo, int minutes) {
+        int window = minutes < 0 ? OrderMerge.DEFAULT_MINUTES : minutes;
+        SalesOrder target = get(orderNo);
+        require(target, CREATED, AUDITED);
+        List<SalesOrder> peers =
+                orderMapper.selectList(
+                        new LambdaQueryWrapper<SalesOrder>()
+                                .eq(SalesOrder::getCustomerCode, target.getCustomerCode())
+                                .in(SalesOrder::getStatus, CREATED, AUDITED));
+        int absorbed = 0;
+        for (SalesOrder other : peers) {
+            if (!OrderMerge.canMerge(target, other, window)) {
+                continue;
+            }
+            absorb(target, other);
+            absorbed++;
+        }
+        if (absorbed == 0) {
+            return target;
+        }
+        BigDecimal goods = BigDecimal.ZERO;
+        for (SalesOrderItem item : items(orderNo)) {
+            goods = goods.add(nz(item.getAmount()));
+        }
+        target.setGoodsAmount(goods);
+        target.setPayAmount(goods.add(nz(target.getFreight())).subtract(nz(target.getDiscount())));
+        orderMapper.updateById(target);
+        log(target, "MERGE", target.getStatus(), target.getStatus(), "合入 " + absorbed + " 张同时段订单");
+        return get(orderNo);
+    }
+
+    private void absorb(SalesOrder target, SalesOrder other) {
+        String from = other.getStatus();
+        List<SalesOrderItem> targetItems = items(target.getOrderNo());
+        for (SalesOrderItem incoming : items(other.getOrderNo())) {
+            SalesOrderItem same = null;
+            for (SalesOrderItem existing : targetItems) {
+                if (existing.getSku() != null && existing.getSku().equals(incoming.getSku())) {
+                    same = existing;
+                    break;
+                }
+            }
+            if (same == null) {
+                SalesOrderItem copy = copyItem(incoming, target.getOrderNo(), n(incoming.getQty()));
+                itemMapper.insert(copy);
+                targetItems.add(copy);
+            } else {
+                int qty = n(same.getQty()) + n(incoming.getQty());
+                same.setQty(qty);
+                same.setAmount(nz(same.getPrice()).multiply(BigDecimal.valueOf(qty)));
+                itemMapper.updateById(same);
+            }
+            itemMapper.deleteById(incoming.getId());
+        }
+        other.setStatus(MERGED);
+        other.setParentOrderNo(target.getOrderNo());
+        other.setGoodsAmount(BigDecimal.ZERO);
+        other.setPayAmount(BigDecimal.ZERO);
+        other.setCancelReason("合入 " + target.getOrderNo());
+        orderMapper.updateById(other);
+        log(other, "MERGE", from, MERGED, "合入 " + target.getOrderNo());
     }
 
     @Transactional

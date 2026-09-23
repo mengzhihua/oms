@@ -15,6 +15,7 @@ const DICT = {
   COMPLETED: ['已完成', 'success'],
   CANCELLED: ['已取消', 'danger'],
   SPLIT: ['已拆单', 'info'],
+  MERGED: ['已合单', 'info'],
   RECEIVED: ['已收货', 'primary'],
   REFUNDED: ['已退款', 'success'],
   REJECTED: ['已驳回', 'danger'],
