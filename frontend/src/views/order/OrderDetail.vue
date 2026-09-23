@@ -44,6 +44,7 @@
         <el-descriptions-item label="审核">{{ fmt(o.auditedAt) }} {{ o.auditedBy }}</el-descriptions-item>
         <el-descriptions-item label="推送">{{ fmt(o.pushedAt) }}</el-descriptions-item>
         <el-descriptions-item label="发货/签收">{{ fmt(o.shippedAt) }} / {{ fmt(o.signedAt) }}</el-descriptions-item>
+        <el-descriptions-item label="发运通知" :span="2">{{ noticeLine }}</el-descriptions-item>
         <el-descriptions-item label="优先级">{{ o.priority }}</el-descriptions-item>
         <el-descriptions-item label="买家留言">{{ o.buyerRemark || '-' }}</el-descriptions-item>
         <el-descriptions-item label="卖家备注">{{ o.sellerRemark || '-' }}</el-descriptions-item>
@@ -143,6 +144,13 @@ const router = useRouter()
 const { options } = useOptions(['carrier'])
 const d = ref({})
 const o = computed(() => d.value.order || {})
+const noticeLine = computed(() => {
+  const rows = d.value.notices || []
+  if (!rows.length) return '-'
+  const name = { SMS: '短信', EMAIL: '邮件' }
+  const state = { RECORDED: '已登记', SENT: '已提交', FAILED: '未送达' }
+  return rows.map((n) => `${name[n.channel] || n.channel} ${n.target} ${state[n.status] || n.status}`).join('；')
+})
 const loading = ref(false)
 const shipVisible = ref(false)
 const splitVisible = ref(false)

@@ -11,8 +11,10 @@ import com.oms.inventory.entity.Inventory;
 import com.oms.inventory.mapper.InventoryMapper;
 import com.oms.inventory.service.InventoryService;
 import com.oms.order.dto.OrderCreateRequest;
+import com.oms.order.entity.OrderNotice;
 import com.oms.order.entity.SalesOrder;
 import com.oms.order.entity.SalesOrderItem;
+import com.oms.order.service.OrderNoticeService;
 import com.oms.order.service.OrderService;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -35,6 +37,7 @@ class OrderFlowTest {
     private static final AtomicInteger SEQ = new AtomicInteger();
 
     @Autowired OrderService orderService;
+    @Autowired OrderNoticeService orderNoticeService;
     @Autowired InventoryService inventoryService;
     @Autowired AfterSaleService afterSaleService;
     @Autowired InventoryMapper inventoryMapper;
@@ -98,6 +101,14 @@ class OrderFlowTest {
         assertEquals(0, integrationLogMapper.selectCount(new LambdaQueryWrapper<IntegrationLog>()
                 .eq(IntegrationLog::getRefNo, o.getOrderNo()).eq(IntegrationLog::getAction, "POST_DELIVERY")));
         assertEquals(onHandBefore - 2, inv("WH-GZ", "SKU001").getQtyOnHand());
+        List<OrderNotice> notices = orderService.notices(o.getOrderNo());
+        assertEquals(1, notices.size());
+        assertEquals("SMS", notices.get(0).getChannel());
+        assertEquals("13800000000", notices.get(0).getTarget());
+        assertEquals("RECORDED", notices.get(0).getStatus());
+        assertEquals(1, orderService.logs(o.getOrderNo()).stream().filter(l -> "NOTICE".equals(l.getAction())).count());
+        orderNoticeService.record(shipped);
+        assertEquals(1, orderService.notices(o.getOrderNo()).size());
         for (SalesOrderItem it : orderService.items(o.getOrderNo())) {
             assertEquals(2, it.getShippedQty());
             assertEquals(0, it.getReservedQty());

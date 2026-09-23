@@ -8,6 +8,7 @@ import com.oms.common.Csv;
 import com.oms.common.R;
 import com.oms.order.dto.OrderCreateRequest;
 import com.oms.order.entity.OrderLog;
+import com.oms.order.entity.OrderNotice;
 import com.oms.order.entity.SalesOrder;
 import com.oms.order.entity.SalesOrderItem;
 import com.oms.order.mapper.SalesOrderMapper;
@@ -75,6 +76,7 @@ public class OrderController {
         private List<SalesOrderItem> items;
         private List<OrderLog> logs;
         private List<SalesOrder> children;
+        private List<OrderNotice> notices;
     }
 
     @GetMapping("/{orderNo}")
@@ -84,6 +86,7 @@ public class OrderController {
         d.setItems(orderService.items(orderNo));
         d.setLogs(orderService.logs(orderNo));
         d.setChildren(orderMapper.selectList(new LambdaQueryWrapper<SalesOrder>().eq(SalesOrder::getParentOrderNo, orderNo)));
+        d.setNotices(orderService.notices(orderNo));
         return R.ok(d);
     }
 

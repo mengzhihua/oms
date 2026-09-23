@@ -62,6 +62,11 @@ oms:
     sap-url: ${OMS_SAP_URL:http://localhost:8085}
     sap-api-key: ${OMS_SAP_API_KEY:sap-open-key}
     mock: ${OMS_INTEGRATION_MOCK:true}
+  notice:
+    # mock 只登记发运短信或邮件，不连网关。http 时 POST {base}/api/open/notice，报文带 sandbox=true。
+    mode: ${OMS_NOTICE_MODE:mock}
+    base-url: ${OMS_NOTICE_URL:}
+    api-key: ${OMS_NOTICE_API_KEY:}
 
 ---
 spring:
