@@ -10,6 +10,8 @@ BASE = "http://localhost:5173"
 OUT = os.path.join(os.path.dirname(__file__), "images")
 USER = os.environ.get("OMS_ADMIN_USER", "admin")
 PASSWORD = os.environ.get("OMS_ADMIN_PASSWORD")
+PLACEHOLDER_HTML = """<html><body style="margin:0;display:flex;align-items:center;justify-content:center;height:100vh;
+font:20px sans-serif;color:#909399;background:#f5f7fa">{name}: 当前环境暂无数据，请先运行 scripts/smoke.sh 后重新截图</body></html>"""
 PAGES = [
     ("dashboard", "/dashboard"),
     ("order-list", "/order/list"),
@@ -67,21 +69,27 @@ async def main():
         token = login["data"]["token"]
         await page.evaluate("(d)=>{localStorage.setItem('oms_token',d.token);localStorage.setItem('oms_user',JSON.stringify(d.user));}", login["data"])
 
-        def latest(resp, field):
-            records = resp.get("data", {}).get("records", [])
-            return max((r[field] for r in records), default=None)
+        async def latest(api, field):
+            """遍历全部分页，按自增主键取最新一条的单号。"""
+            best, current = None, 1
+            while True:
+                resp = await page.evaluate(API_JS, [f"{api}?size=200&current={current}", token])
+                records = resp.get("data", {}).get("records", [])
+                if not records:
+                    return best[field] if best else None
+                top = max(records, key=lambda r: int(r["id"]))
+                if best is None or int(top["id"]) > int(best["id"]):
+                    best = top
+                current += 1
 
-        orders = await page.evaluate(API_JS, ["/order/page?size=200", token])
-        returns = await page.evaluate(API_JS, ["/aftersale/page?size=200", token])
-        ids = {"order": latest(orders, "orderNo"), "return": latest(returns, "returnNo")}
+        ids = {"order": await latest("/order/page", "orderNo"), "return": await latest("/aftersale/page", "returnNo")}
 
         for name, path in PAGES:
             key = path[path.find("{") + 1:path.find("}")] if "{" in path else None
             if key and not ids[key]:
-                stale = f"{OUT}/{name}.png"
-                if os.path.exists(stale):
-                    os.remove(stale)
-                print("skip", name, "(无数据，已移除旧图)")
+                await page.set_content(PLACEHOLDER_HTML.format(name=name))
+                await page.screenshot(path=f"{OUT}/{name}.png")
+                print("placeholder", name, "(无数据)")
                 continue
             await page.goto(BASE + path.format(**ids))
             await page.wait_for_load_state("networkidle")
