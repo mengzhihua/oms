@@ -371,7 +371,8 @@ public class OrderService {
                                 .in(SalesOrder::getStatus, CREATED, AUDITED));
         int absorbed = 0;
         for (SalesOrder other : peers) {
-            if (!OrderMerge.canMerge(target, other, window)) {
+            if (!OrderMerge.canMerge(target, other, window)
+                    || integrationService.isDmsOrder(other)) {
                 continue;
             }
             absorb(target, other);
