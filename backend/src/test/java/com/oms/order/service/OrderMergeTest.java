@@ -40,6 +40,9 @@ class OrderMergeTest {
         assertFalse(OrderMerge.canMerge(target, late, 30));
         assertFalse(OrderMerge.canMerge(target, shipped, 30));
         assertFalse(OrderMerge.canMerge(target, order("SO-6", "", "CREATED", at), 30));
+        SalesOrder otherShop = order("SO-7", "CUST-1", "CREATED", at);
+        otherShop.setShopCode("SHOP-DMS01");
+        assertFalse(OrderMerge.canMerge(target, otherShop, 30));
     }
 
     private static SalesOrder order(String no, String customer, String status, LocalDateTime time) {

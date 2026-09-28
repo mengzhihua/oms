@@ -266,8 +266,13 @@ public class IntegrationService {
             h.setContentType(MediaType.APPLICATION_JSON);
             h.set("X-Api-Key", dmsKey);
             String body = rest.postForObject(dmsUrl + "/api/open/oms/orders/status", new HttpEntity<>(payload, h), String.class);
-            l.setSuccess(1);
             l.setResponseBody(body);
+            Map<?, ?> response = objectMapper.readValue(body == null ? "{}" : body, Map.class);
+            Object code = response.get("code");
+            if (code != null && !"0".equals(String.valueOf(code))) {
+                throw new BizException("DMS 拒绝: " + response.get("msg"));
+            }
+            l.setSuccess(1);
         } catch (Exception e) {
             l.setSuccess(0);
             l.setErrorMsg(trim(e.getMessage()));

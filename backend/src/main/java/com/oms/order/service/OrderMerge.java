@@ -4,7 +4,7 @@ import com.oms.order.entity.SalesOrder;
 import java.time.Duration;
 import java.time.LocalDateTime;
 
-/** 同一客户、同一收货地址、同一时段内的待处理订单可以合到一张单上。 */
+/** 同一店铺、同一客户、同一收货地址、同一时段内的待处理订单可以合到一张单上。 */
 public final class OrderMerge {
     public static final int DEFAULT_MINUTES = 30;
 
@@ -32,6 +32,9 @@ public final class OrderMerge {
             return false;
         }
         if (!same(target.getCustomerCode(), other.getCustomerCode()) || blank(target.getCustomerCode())) {
+            return false;
+        }
+        if (!same(target.getShopCode(), other.getShopCode())) {
             return false;
         }
         if (!same(address(target), address(other))) {
