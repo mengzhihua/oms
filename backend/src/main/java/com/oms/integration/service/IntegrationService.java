@@ -142,11 +142,20 @@ public class IntegrationService {
             TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
                 @Override
                 public void afterCommit() {
-                    sendDms(o, items, event);
+                    sendDmsQuietly(o, items, event);
                 }
             });
         } else {
+            sendDmsQuietly(o, items, event);
+        }
+    }
+
+    /** 回推与写日志均尽力而为:订单已提交,任何异常不得传回调用方 */
+    private void sendDmsQuietly(SalesOrder o, List<SalesOrderItem> items, String event) {
+        try {
             sendDms(o, items, event);
+        } catch (RuntimeException e) {
+            log.error("DMS 回推 {} {} 记录失败: {}", event, o.getOrderNo(), e.getMessage());
         }
     }
 
