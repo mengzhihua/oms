@@ -531,6 +531,7 @@ public class OrderService {
         if (!notices.isEmpty()) {
             log(o, "NOTICE", SHIPPED, SHIPPED, OrderNoticeService.remark(notices));
         }
+        integrationService.notifyDms(o, items, "SHIPPED");
         return o;
     }
 
@@ -549,6 +550,7 @@ public class OrderService {
         o.setSignedAt(LocalDateTime.now());
         o.setCompletedAt(LocalDateTime.now());
         transit(o, "SIGN", COMPLETED, remark == null ? "签收完成" : remark);
+        integrationService.notifyDms(o, items(orderNo), "SIGNED");
         return o;
     }
 
@@ -570,6 +572,7 @@ public class OrderService {
         }
         o.setCancelReason(reason);
         transit(o, "CANCEL", CANCELLED, reason);
+        integrationService.notifyDms(o, items(orderNo), "CANCELLED");
         return o;
     }
 
