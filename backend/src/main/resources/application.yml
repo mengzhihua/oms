@@ -61,6 +61,10 @@ oms:
     dms-url: ${OMS_DMS_URL:}
     dms-key: ${OMS_DMS_KEY:}
     dms-channel-code: DMS
+    # 外呼 WMS/TMS/DMS 的连接/读取超时(毫秒)
+    timeout-ms: ${OMS_INTEGRATION_TIMEOUT_MS:5000}
+    # 非 localhost 的 http:// 下游地址默认拒绝启动(API key/订单数据明文),仅联调环境显式打开
+    allow-insecure-http: ${OMS_INTEGRATION_ALLOW_INSECURE_HTTP:false}
 
 ---
 spring:
