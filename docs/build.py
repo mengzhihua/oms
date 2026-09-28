@@ -47,7 +47,9 @@ def mermaid_script():
     cache = os.path.join(HERE, ".mermaid.min.js")
     try:
         if not os.path.exists(cache):
-            urllib.request.urlretrieve(MERMAID_URL, cache)
+            tmp = cache + ".part"
+            urllib.request.urlretrieve(MERMAID_URL, tmp)
+            os.replace(tmp, cache)
         return "<script>" + open(cache, encoding="utf-8").read() + "</script>"
     except Exception as e:  # noqa
         print("mermaid inline failed, fallback to CDN:", e)

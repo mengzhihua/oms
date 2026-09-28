@@ -67,17 +67,21 @@ async def main():
         token = login["data"]["token"]
         await page.evaluate("(d)=>{localStorage.setItem('oms_token',d.token);localStorage.setItem('oms_user',JSON.stringify(d.user));}", login["data"])
 
-        orders = await page.evaluate(API_JS, ["/order/page?size=1", token])
-        returns = await page.evaluate(API_JS, ["/aftersale/page?size=1", token])
-        ids = {
-            "order": next((o["orderNo"] for o in orders.get("data", {}).get("records", [])), None),
-            "return": next((r["returnNo"] for r in returns.get("data", {}).get("records", [])), None),
-        }
+        def latest(resp, field):
+            records = resp.get("data", {}).get("records", [])
+            return max((r[field] for r in records), default=None)
+
+        orders = await page.evaluate(API_JS, ["/order/page?size=200", token])
+        returns = await page.evaluate(API_JS, ["/aftersale/page?size=200", token])
+        ids = {"order": latest(orders, "orderNo"), "return": latest(returns, "returnNo")}
 
         for name, path in PAGES:
             key = path[path.find("{") + 1:path.find("}")] if "{" in path else None
             if key and not ids[key]:
-                print("skip", name, "(无数据)")
+                stale = f"{OUT}/{name}.png"
+                if os.path.exists(stale):
+                    os.remove(stale)
+                print("skip", name, "(无数据，已移除旧图)")
                 continue
             await page.goto(BASE + path.format(**ids))
             await page.wait_for_load_state("networkidle")
