@@ -1,8 +1,10 @@
 """将 项目汇报.md 渲染为自包含 HTML（截图内嵌 base64，Mermaid 由浏览器渲染）并导出 PDF。
-用法: python3 docs/build.py   （PDF 导出需要本机 Chrome 开启 CDP 端口 29229，缺失时仅生成 HTML）
+用法: python3 docs/build.py   （PDF 导出需要本机 Chrome 开启 CDP 端口 29229，失败时删除旧 PDF 并以非 0 退出）
 """
-import asyncio, base64, os, re
+import asyncio, base64, os, re, sys, urllib.request
 import markdown
+
+MERMAID_URL = "https://cdn.jsdelivr.net/npm/mermaid@10.9.1/dist/mermaid.min.js"
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 SRC = os.path.join(HERE, "项目汇报.md")
@@ -38,10 +40,24 @@ blockquote{border-left:4px solid #e6a23c;background:#fdf6ec;margin:0;padding:6px
 hr{border:0;border-top:1px dashed #dcdfe6;margin:32px 0}
 @media print{body{padding:0;max-width:none}pre.mermaid svg{max-height:180mm}}
 """
+
+
+def mermaid_script():
+    """内联 mermaid.js，使 HTML 离线可用；下载失败时回退为 CDN 引用。"""
+    cache = os.path.join(HERE, ".mermaid.min.js")
+    try:
+        if not os.path.exists(cache):
+            urllib.request.urlretrieve(MERMAID_URL, cache)
+        return "<script>" + open(cache, encoding="utf-8").read() + "</script>"
+    except Exception as e:  # noqa
+        print("mermaid inline failed, fallback to CDN:", e)
+        return f'<script src="{MERMAID_URL}"></script>'
+
+
 html = f"""<!DOCTYPE html><html lang="zh-CN"><head><meta charset="utf-8"><title>OMS 订单管理系统 项目汇报</title>
 <style>{CSS}</style>
-<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
-<script>mermaid.initialize({{startOnLoad:true,theme:'default',securityLevel:'loose'}});</script>
+{mermaid_script()}
+<script>mermaid.initialize({{startOnLoad:true,theme:'default',securityLevel:'strict'}});</script>
 </head><body>{body}</body></html>"""
 open(HTML_OUT, "w", encoding="utf-8").write(html)
 print("html ->", HTML_OUT, len(html) // 1024, "KB")
@@ -60,7 +76,10 @@ async def pdf():
         await page.close()
     print("pdf ->", PDF_OUT, os.path.getsize(PDF_OUT) // 1024, "KB")
 
+if os.path.exists(PDF_OUT):
+    os.remove(PDF_OUT)
 try:
     asyncio.run(pdf())
 except Exception as e:  # noqa
-    print("pdf skipped:", e)
+    print("pdf failed:", e)
+    sys.exit(1)
