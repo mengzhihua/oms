@@ -361,6 +361,9 @@ public class OrderService {
         SalesOrder target = get(orderNo);
         int window = OrderMerge.window(shopMinutes(target.getShopCode()), minutes);
         require(target, CREATED, AUDITED);
+        if (integrationService.isDmsOrder(target)) {
+            throw new BizException("DMS 补货单需逐单回推状态，不支持合单: " + orderNo);
+        }
         List<SalesOrder> peers =
                 orderMapper.selectList(
                         new LambdaQueryWrapper<SalesOrder>()

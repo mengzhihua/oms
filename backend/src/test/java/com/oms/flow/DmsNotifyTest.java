@@ -9,6 +9,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.transaction.support.TransactionTemplate;
 
 import java.util.Collections;
@@ -69,6 +70,34 @@ class DmsNotifyTest {
         assertDoesNotThrow(() -> tx.executeWithoutResult(s ->
                 integrationService.notifyDms(o, Collections.emptyList(), "SHIPPED")));
         assertDoesNotThrow(() -> integrationService.notifyDms(o, Collections.emptyList(), "SIGNED"));
+    }
+
+    @Test
+    void businessErrorFromDmsIsLoggedAsFailure() throws Exception {
+        com.sun.net.httpserver.HttpServer server =
+                com.sun.net.httpserver.HttpServer.create(new java.net.InetSocketAddress("127.0.0.1", 0), 0);
+        server.createContext("/api/open/oms/orders/status", ex -> {
+            byte[] body = "{\"code\":40001,\"msg\":\"补货单不存在\"}".getBytes(java.nio.charset.StandardCharsets.UTF_8);
+            ex.getResponseHeaders().add("Content-Type", "application/json");
+            ex.sendResponseHeaders(200, body.length);
+            ex.getResponseBody().write(body);
+            ex.close();
+        });
+        server.start();
+        try {
+            ReflectionTestUtils.setField(integrationService, "dmsUrl", "http://127.0.0.1:" + server.getAddress().getPort());
+            SalesOrder o = dmsOrder();
+            assertDoesNotThrow(() -> integrationService.notifyDms(o, Collections.emptyList(), "SHIPPED"));
+            IntegrationLog l = logMapper.selectOne(new LambdaQueryWrapper<IntegrationLog>()
+                    .eq(IntegrationLog::getTarget, IntegrationService.DMS)
+                    .eq(IntegrationLog::getRefNo, o.getOrderNo()));
+            assertNotNull(l);
+            assertEquals(0, l.getSuccess(), "DMS 返回非 0 业务码应记为失败");
+            assertTrue(l.getErrorMsg().contains("补货单不存在"));
+        } finally {
+            ReflectionTestUtils.setField(integrationService, "dmsUrl", "");
+            server.stop(0);
+        }
     }
 
     @Test
