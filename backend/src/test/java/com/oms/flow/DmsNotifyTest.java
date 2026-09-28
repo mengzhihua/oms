@@ -63,6 +63,15 @@ class DmsNotifyTest {
     }
 
     @Test
+    void logFailureAfterCommitDoesNotPropagate() {
+        SalesOrder o = dmsOrder();
+        o.setOrderNo("SO-" + String.join("", java.util.Collections.nCopies(80, "X"))); // ref_no VARCHAR(64) 溢出 -> 日志写入失败
+        assertDoesNotThrow(() -> tx.executeWithoutResult(s ->
+                integrationService.notifyDms(o, Collections.emptyList(), "SHIPPED")));
+        assertDoesNotThrow(() -> integrationService.notifyDms(o, Collections.emptyList(), "SIGNED"));
+    }
+
+    @Test
     void plainHttpToRemoteHostRejectedByDefault() {
         assertThrows(IllegalStateException.class, () -> integrationService.checkUrl("http://dms.example.com"));
         assertDoesNotThrow(() -> integrationService.checkUrl("https://dms.example.com"));
